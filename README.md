@@ -12,6 +12,8 @@ Each video has its own folder (e.g. `smoke-detected-whole-house-alert-sensereo-m
 
 ## Videos
 - [Smoke Detected → Whole House Alert (Sensereo MS1)](./smoke-detected-whole-house-alert-sensereo-ms1/)
+- [I Deleted My HVAC Automations and Used This Instead (Climate Scheduler)](./hvac-climate-scheduler-no-more-automations/)
+- [2 New HACS Energy Cards You NEED (Treemap + Compact Power)](./energy-cards-treemap-compact-power/)
 
 ## ⚠️ Notes
 - Secrets/tokens are removed and replaced with placeholders.
