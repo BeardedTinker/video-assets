@@ -1,0 +1,45 @@
+- id: bt_smoke_ms1_self_test_reminder
+  alias: "BT • Smoke Detector Self-Test Reminder (Sensereo MS1)"
+  description: >
+    Monthly reminder to run the detector self-test. Optional: press the device's self-test button entity if available.
+  mode: single
+
+  variables:
+    notify_push: notify.mobile_app_pixel_9_pro_xl
+    notify_telegram: notify.telegram_ebrzsmbrbot
+
+    # If you have a button entity to trigger self-test, set it here; otherwise leave as-is and keep it as reminder only.
+    self_test_button: button.upper_landing_smoke_self_test
+
+    # Run on the 1st day of month at 10:00
+    schedule_hour: 10
+    schedule_minute: 0
+
+  trigger:
+    - platform: time
+      at: "10:00:00"
+
+  condition:
+    - condition: template
+      value_template: "{{ now().day == 1 }}"
+
+  action:
+    - variables:
+        ts: "{{ now().strftime('%Y-%m-%d') }}"
+        msg: >
+          ✅ Self-test reminder ({{ ts }})
+          Run a smoke detector self-test (Sensereo MS1).
+
+    - service: "{{ notify_push }}"
+      data:
+        title: "✅ Smoke detector self-test"
+        message: "{{ msg }}"
+
+    - service: "{{ notify_telegram }}"
+      data:
+        message: "{{ msg }}"
+
+    # Optional: actually trigger the self-test (only if button exists and you WANT this)
+    # - service: button.press
+    #   target:
+    #     entity_id: "{{ self_test_button }}"
