@@ -1,0 +1,40 @@
+- id: bt_smoke_ms1_battery_alert
+  alias: "BT • Smoke Detector Battery Alert (Sensereo MS1)"
+  description: >
+    Sends a warning when the detector reports battery alert. Includes a longer cooldown
+    to avoid repeated warnings.
+  mode: single
+
+  variables:
+    battery_alert_entity: binary_sensor.upper_landing_smoke_battery_alert
+    notify_push: notify.mobile_app_pixel_9_pro_xl
+    notify_telegram: notify.telegram_ebrzsmbrbot
+    cooldown_hours: 24
+
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.upper_landing_smoke_battery_alert
+      to: "on"
+
+  condition:
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - variables:
+        ts: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        msg: >
+          🪫 Smoke detector battery alert ({{ ts }})
+          Entity: {{ battery_alert_entity }}
+          Replace battery soon.
+
+    - service: "{{ notify_push }}"
+      data:
+        title: "🪫 Smoke detector battery"
+        message: "{{ msg }}"
+
+    - service: "{{ notify_telegram }}"
+      data:
+        message: "{{ msg }}"
