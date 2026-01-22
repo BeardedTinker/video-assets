@@ -11,6 +11,15 @@ The smoke detector has its **own local siren** and should still alarm even if yo
 Home Assistant automations here are an **extra layer** for whole-house notifications and actions.  
 Always follow local safety regulations and use certified devices.
 
+## Files
+
+- 📁 [All automations](./home-assistant/automations/)
+- 🔥 [FIRE – Smoke Detected (Upper Landing)](./home-assistant/automations/fire_smoke_detected_upper_landing.yaml)
+- 🔋 [Low Battery (Upper Landing)](./home-assistant/automations/smoke_low_battery_upper_landing.yaml)
+- ⚠️ [Fault (Upper Landing)](./home-assistant/automations/smoke_fault_upper_landing.yaml)
+- 🧹 [Contamination Warning](./home-assistant/automations/smoke_contamination_warning_upper_landing.yaml)
+- 🧪 [Monthly Self-Test Reminder](./home-assistant/automations/smoke_monthly_self_test_reminder_upper_landing.yaml)
+
 ## Entities used (example)
 Replace these with your own entity IDs:
 - `binary_sensor.upper_landing_smoke_smoke`
