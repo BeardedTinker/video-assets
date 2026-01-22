@@ -1,0 +1,33 @@
+- id: bt_smoke_contamination_warning_upper_landing
+  alias: "Smoke Detector – Contamination Warning (Upper Landing)"
+  description: "Warn when contamination state is not Normal"
+  mode: single
+
+  variables:
+    cooldown_hours: 24
+    contamination_entity: sensor.upper_landing_smoke_contamination_state
+    notify_telegram: notify.telegram_ebrzsmbrbot
+    ok_state: "Normal"
+
+  trigger:
+    - platform: state
+      entity_id: sensor.upper_landing_smoke_contamination_state
+
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.to_state is not none and trigger.to_state.state != ok_state }}
+
+    # Anti-spam: only alert once per cooldown window
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: "{{ notify_telegram }}"
+      data:
+        message: >-
+          🧹 Smoke detector (Upper Landing) contamination detected: {{ trigger.to_state.state }}
