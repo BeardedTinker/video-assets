@@ -1,0 +1,50 @@
+- id: bt_smoke_ms1_contamination_state
+  alias: "BT • Smoke Detector Contamination / Maintenance (Sensereo MS1)"
+  description: >
+    Alerts when contamination/maintenance state changes to a non-OK value.
+    Cooldown prevents spam if the sensor flaps.
+  mode: single
+
+  variables:
+    contamination_sensor: sensor.upper_landing_smoke_contamination_state
+    notify_push: notify.mobile_app_pixel_9_pro_xl
+    notify_telegram: notify.telegram_ebrzsmbrbot
+    cooldown_hours: 24
+
+    # Treat these as "OK" (adjust to your sensor's actual values)
+    ok_states:
+      - "ok"
+      - "normal"
+      - "0"
+      - "clean"
+
+  trigger:
+    - platform: state
+      entity_id: sensor.upper_landing_smoke_contamination_state
+
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.to_state is not none and trigger.to_state.state not in ok_states }}
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - variables:
+        ts: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        new_state: "{{ trigger.to_state.state }}"
+        msg: >
+          🧹 Smoke detector maintenance/contamination warning ({{ ts }})
+          {{ contamination_sensor }} = {{ new_state }}
+          Consider cleaning or servicing the detector.
+
+    - service: "{{ notify_push }}"
+      data:
+        title: "🧹 Smoke detector maintenance"
+        message: "{{ msg }}"
+
+    - service: "{{ notify_telegram }}"
+      data:
+        message: "{{ msg }}"
