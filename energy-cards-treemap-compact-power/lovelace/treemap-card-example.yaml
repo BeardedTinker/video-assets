@@ -1,0 +1,42 @@
+type: custom:treemap-card
+title: Temperature
+entities:
+  - sensor.*_temperature
+
+exclude:
+  - sensor.*target*
+  - sensor.albroz_battery_temperature
+  - sensor.ebroz_nas_drive_1_temperature
+  - sensor.ebroz_nas_drive_2_temperature
+
+height: 500
+gap: 4
+
+size:
+  equal: false
+
+filter:
+  above: 0
+  below: 100
+
+color:
+  low: "#0000FF"
+  high: "#FF0000"
+  opacity: 0.9
+
+scale:
+  neutral: 20
+  min: 0
+  max: 35
+
+label:
+  show: true
+  attribute: friendly_name
+  style: |
+    text-shadow: 0 0 3px rgba(0,0,0,0.3);
+
+value:
+  attribute: state
+  suffix: " °C"
+  style: |
+    font-weight: bold;
