@@ -1,7 +1,7 @@
 # Smoke Detected → Whole House Alert (Matter + Home Assistant)
 **Device:** Sensereo MS1 (Matter smoke detector, Thread)  
 **Video:** https://www.youtube.com/watch?v=X_DA_vfuB2Y  
-**Product link:** https://shop.sensereo.com/products/smoke-alarm-ms-1?sca_ref=10461401.OZ1rik9K8fJb
+**Product link (*):** https://shop.sensereo.com/products/smoke-alarm-ms-1?sca_ref=10461401.OZ1rik9K8fJb
 
 This folder contains Home Assistant YAML examples used in the video to turn a smoke detector into a **whole-house alert system**:
 push notifications, Telegram, optional TTS, scenes, HVAC shutdown, health checks and reminders.
@@ -33,11 +33,22 @@ Optional:
 
 # How to install
 
-## Option A — Use the Package (recommended)
-Copy:
-`home-assistant/packages/sensereo_ms1_whole_house_alert.yaml`
+## Option A — Separate automation files (recommended)
 
-Then include packages in your `configuration.yaml` if you don't already:
+Add this to your `configuration.yaml`:
+
 ```yaml
-homeassistant:
-  packages: !include_dir_named packages
+automation: !include_dir_merge_list automations
+```
+Then copy all YAML files from:
+
+`home-assistant/automations/`
+
+Copy these files into your Home Assistant `/config/automations/` folder.
+
+Restart Home Assistant.
+
+---
+
+## Affiliate disclosure
+Links marked with (*) are affiliate links.
