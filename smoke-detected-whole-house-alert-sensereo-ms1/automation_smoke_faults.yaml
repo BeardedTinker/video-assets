@@ -1,0 +1,45 @@
+- id: bt_smoke_ms1_faults
+  alias: "BT • Smoke Detector Faults (Hardware / End of Service)"
+  description: >
+    Alerts on hardware fault or end-of-service. Includes cooldown to avoid repeated alerts.
+  mode: single
+
+  variables:
+    hardware_fault: binary_sensor.upper_landing_smoke_hardware_fault
+    end_of_service: binary_sensor.upper_landing_smoke_end_of_service
+    notify_push: notify.mobile_app_pixel_9_pro_xl
+    notify_telegram: notify.telegram_ebrzsmbrbot
+    cooldown_hours: 12
+
+  trigger:
+    - platform: state
+      entity_id:
+        - binary_sensor.upper_landing_smoke_hardware_fault
+        - binary_sensor.upper_landing_smoke_end_of_service
+      to: "on"
+
+  condition:
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - variables:
+        ts: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        trig: "{{ trigger.entity_id }}"
+        kind: >
+          {% if trig == hardware_fault %}HARDWARE FAULT{% elif trig == end_of_service %}END OF SERVICE{% else %}FAULT{% endif %}
+        msg: >
+          ⚠️ Smoke detector {{ kind }} ({{ ts }})
+          Entity: {{ trig }}
+          Check device status / replace if needed.
+
+    - service: "{{ notify_push }}"
+      data:
+        title: "⚠️ Smoke detector fault"
+        message: "{{ msg }}"
+
+    - service: "{{ notify_telegram }}"
+      data:
+        message: "{{ msg }}"
