@@ -1,0 +1,81 @@
+- id: bt_fire_smoke_detected_upper_landing
+  alias: "FIRE – Smoke Detected (Upper Landing)"
+  description: "Critical fire alert from smoke detector (Sensereo MS1 via Matter/Thread)"
+  mode: single
+
+  variables:
+    cooldown_minutes: 10
+
+    smoke_entity: binary_sensor.upper_landing_smoke_smoke
+
+    notify_push: notify.mobile_app_pixel_9_pro_xl
+    notify_telegram: notify.telegram_ebrzsmbrbot
+
+    tts_player: media_player.living_room_2
+    tts_script: script.say_living_room
+
+    shutdown_switches:
+      - switch.fireplace_socket
+      - switch.study_heater
+      - switch.bedroom_heater
+      - switch.kitchen_heater
+
+    alert_lights:
+      - light.garden_lights
+
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.upper_landing_smoke_smoke
+      to: "on"
+
+  condition:
+    # Anti-spam: don't repeat within cooldown window
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_minutes * 60) }}
+
+  action:
+    - service: "{{ notify_push }}"
+      data:
+        title: "🔥 FIRE ALERT"
+        message: "Smoke detected on Upper Landing! Evacuate immediately."
+        data:
+          ttl: 0
+          priority: high
+
+    - service: notify.send_message
+      target:
+        entity_id: "{{ notify_telegram }}"
+      data:
+        message: |-
+          🔥 *FIRE ALERT*
+          Smoke detected on Upper Landing!
+
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ states(tts_player) not in ['unavailable','unknown','off'] }}
+          sequence:
+            - service: "{{ tts_script }}"
+              data:
+                message: "Warning. Smoke detected on upper floor. Please leave the house immediately."
+
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ shutdown_switches | length > 0 }}"
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id: "{{ shutdown_switches }}"
+
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ alert_lights | length > 0 }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: "{{ alert_lights }}"
