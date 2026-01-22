@@ -1,0 +1,22 @@
+- id: bt_smoke_monthly_self_test_reminder_upper_landing
+  alias: "Smoke Detector – Monthly Self-Test Reminder (Upper Landing)"
+  description: "Monthly reminder to run a smoke detector self-test (day 1 at 10:00)"
+  mode: single
+
+  variables:
+    notify_telegram: notify.telegram_ebrzsmbrbot
+
+  trigger:
+    - platform: time
+      at: "10:00:00"
+
+  condition:
+    - condition: template
+      value_template: "{{ now().day == 1 }}"
+
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: "{{ notify_telegram }}"
+      data:
+        message: "🧪 Reminder: Run smoke detector self-test (Upper Landing)."
