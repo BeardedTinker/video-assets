@@ -1,0 +1,28 @@
+- id: bt_smoke_low_battery_upper_landing
+  alias: "Smoke Detector – Low Battery (Upper Landing)"
+  description: "Low battery warning from Sensereo MS1 (Matter/Thread)"
+  mode: single
+
+  variables:
+    cooldown_hours: 24
+    battery_alert_entity: binary_sensor.upper_landing_smoke_battery_alert
+    notify_telegram: notify.telegram_ebrzsmbrbot
+
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.upper_landing_smoke_battery_alert
+      to: "on"
+
+  condition:
+    # Anti-spam: only alert once per cooldown window
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: "{{ notify_telegram }}"
+      data:
+        message: "🔋 Smoke detector (Upper Landing) battery low."
