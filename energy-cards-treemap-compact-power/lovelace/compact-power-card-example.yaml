@@ -1,0 +1,66 @@
+type: custom:compact-power-card
+threshold_mode: calculations
+subtract_devices_from_home: false
+
+entities:
+  pv:
+    entity: sensor.solarflow_800_pro_solar_power1
+    decimal_places: 2
+
+  grid:
+    entity: sensor.shelly_pro_3em_power
+    invert_state_values: true
+    decimal_places: 2
+    labels:
+      - entity: sensor.tv_socket_voltage
+        icon: mdi:lightning-bolt
+        unit: V
+      - entity: input_number.energy_price
+        icon: mdi:currency-eur
+        decimal_places: 2
+        unit: c/kWh
+
+  battery:
+    - entity: sensor.co4ehncdn235621_power
+      battery_soc: sensor.co4ehncdn235621_soc_level
+      show_soc: true
+      decimal_places: 2
+      battery_capacity: 1.9
+
+  home: {}
+
+  devices:
+    - entity: sensor.usb_charger_power
+      icon: mdi:usb-port
+      threshold: 10
+      color: "#FFFFFF"
+      switch_entity: switch.usb_charger
+
+    - entity: sensor.tv_socket_power
+      icon: mdi:monitor
+      threshold: 19
+
+    - entity: sensor.bedroom_heater_power
+      icon: mdi:radiator
+      threshold: 500
+      color: "#FF0000"
+
+    - entity: sensor.fireplace_socket_power
+      icon: mdi:heating-coil
+      switch_entity: switch.fireplace_socket
+
+    - entity: sensor.study_heater_power
+      icon: mdi:radiator-disabled
+      switch_entity: switch.study_heater
+
+    - entity: sensor.kitchen_heater_power
+      icon: mdi:radiator-disabled
+      switch_entity: switch.kitchen_heater
+
+grid_options:
+  columns: 12
+  rows: 4
+
+curved_lines: true
+enable_device_power_lines: true
+disable_home_gradient: false
