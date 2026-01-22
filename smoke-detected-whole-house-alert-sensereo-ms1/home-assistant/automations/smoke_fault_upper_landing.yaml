@@ -1,0 +1,42 @@
+- id: bt_smoke_fault_upper_landing
+  alias: "Smoke Detector – Fault (Upper Landing)"
+  description: "Hardware fault / end-of-service warning from Sensereo MS1"
+  mode: single
+
+  variables:
+    cooldown_hours: 12
+    notify_telegram: notify.telegram_ebrzsmbrbot
+
+    hardware_fault: binary_sensor.upper_landing_smoke_hardware_fault
+    end_of_service: binary_sensor.upper_landing_smoke_end_of_service
+
+  trigger:
+    - platform: state
+      entity_id:
+        - binary_sensor.upper_landing_smoke_hardware_fault
+        - binary_sensor.upper_landing_smoke_end_of_service
+      to: "on"
+
+  condition:
+    # Anti-spam: only alert once per cooldown window
+    - condition: template
+      value_template: >
+        {% set last = this.attributes.last_triggered %}
+        {{ last is none or (now() - last).total_seconds() > (cooldown_hours * 3600) }}
+
+  action:
+    - variables:
+        fault_type: >
+          {% if trigger.entity_id == hardware_fault %}
+            hardware fault
+          {% elif trigger.entity_id == end_of_service %}
+            end of service
+          {% else %}
+            fault
+          {% endif %}
+
+    - service: notify.send_message
+      target:
+        entity_id: "{{ notify_telegram }}"
+      data:
+        message: "⚠️ Smoke detector {{ fault_type }} on Upper Landing. Check device."
