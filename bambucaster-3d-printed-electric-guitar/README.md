@@ -3,7 +3,7 @@
 This folder contains the resources, links, and build notes from my video where I 3D printed the **BambuCaster electric guitar** on a **Bambu Lab P2S** (with **2x AMS**) — and yes… it actually plays 🎸🔥
 
 ## 🎥 Video
-YouTube: (add link here)
+YouTube: https://youtu.be/syXPgEMoHfk
 
 ## 🧩 Main project link (credit)
 BambuCaster (MakerWorld):
