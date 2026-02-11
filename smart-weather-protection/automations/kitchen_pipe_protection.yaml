@@ -1,0 +1,206 @@
+###############################################################################
+# Kitchen Pipe Protection
+#
+# Goal:
+# - If temp drops below 1°C -> turn on kitchen heater for up to 60 minutes
+# - Can stop earlier if temp rises above 4°C
+# - Runs even when Away (protection-grade behavior)
+#
+# Entities used:
+# - sensor.kitchen_climate_temperature
+# - switch.kitchen_heater
+# - input_boolean.pipe_protection_active
+# - input_number.pipe_protection_kitchen_on_temp
+# - input_number.pipe_protection_kitchen_off_temp
+# - input_number.pipe_protection_kitchen_max_runtime_minutes
+# - timer.pipe_protection_kitchen
+# - notify.mobile_app_pixel_9_pro_xl
+# - notify.telegram_ebrzsmbrbot
+###############################################################################
+
+- id: kitchen_pipe_protection_start
+  alias: "Protection — Kitchen Pipe Protection (START)"
+  description: "Turns on kitchen heater when temperature drops below threshold."
+  mode: single
+
+  trigger:
+    - trigger: numeric_state
+      entity_id: sensor.kitchen_climate_temperature
+      below: "{{ states('input_number.pipe_protection_kitchen_on_temp') | float(1) }}"
+      for: "00:05:00"
+
+  condition:
+    - condition: template
+      value_template: >-
+        {{ states('sensor.kitchen_climate_temperature') not in
+           ['unknown','unavailable','none','None',''] }}
+
+    - condition: state
+      entity_id: input_boolean.pipe_protection_active
+      state: "off"
+
+  action:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.pipe_protection_active
+
+    - action: switch.turn_on
+      target:
+        entity_id: switch.kitchen_heater
+
+    - action: timer.start
+      target:
+        entity_id: timer.pipe_protection_kitchen
+      data:
+        duration: >-
+          {% set m = states('input_number.pipe_protection_kitchen_max_runtime_minutes') | int(60) %}
+          {{ '%02d:%02d:00' | format((m // 60), (m % 60)) }}
+
+    - variables:
+        temp_now: "{{ states('sensor.kitchen_climate_temperature') | float }}"
+        t_on: "{{ states('input_number.pipe_protection_kitchen_on_temp') | float(1) }}"
+        t_off: "{{ states('input_number.pipe_protection_kitchen_off_temp') | float(4) }}"
+        runtime: "{{ states('input_number.pipe_protection_kitchen_max_runtime_minutes') | int(60) }}"
+
+    - action: notify.mobile_app_pixel_9_pro_xl
+      data:
+        title: "🧊 Pipe protection STARTED"
+        message: >-
+          Kitchen is {{ temp_now | round(1) }}°C (≤ {{ t_on }}°C).
+          Heater ON for up to {{ runtime }} min (auto-stop at ≥ {{ t_off }}°C).
+        data:
+          ttl: 0
+          priority: high
+
+    - action: notify.send_message
+      target:
+        entity_id: notify.telegram_ebrzsmbrbot
+      data:
+        message: >-
+          🧊 *Pipe protection STARTED*
+          Kitchen {{ temp_now | round(1) }}°C (≤ {{ t_on }}°C).
+          Heater ON (max {{ runtime }} min, stop at ≥ {{ t_off }}°C).
+
+- id: kitchen_pipe_protection_stop
+  alias: "Protection — Kitchen Pipe Protection (STOP)"
+  description: "Stops pipe protection when temp recovers or max runtime expires."
+  mode: restart
+
+  trigger:
+    - trigger: numeric_state
+      entity_id: sensor.kitchen_climate_temperature
+      above: "{{ states('input_number.pipe_protection_kitchen_off_temp') | float(4) }}"
+      for: "00:10:00"
+      id: recovered
+
+    - trigger: event
+      event_type: timer.finished
+      event_data:
+        entity_id: timer.pipe_protection_kitchen
+      id: timer_finished
+
+    - trigger: state
+      entity_id: sensor.kitchen_climate_temperature
+      to: "unavailable"
+      for: "00:10:00"
+      id: sensor_unavailable
+
+  condition:
+    - condition: state
+      entity_id: input_boolean.pipe_protection_active
+      state: "on"
+
+  action:
+    - choose:
+        # 1) Recovered -> stop early
+        - conditions:
+            - condition: trigger
+              id: recovered
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.kitchen_heater
+            - action: timer.cancel
+              target:
+                entity_id: timer.pipe_protection_kitchen
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.pipe_protection_active
+
+            - variables:
+                temp_now: "{{ states('sensor.kitchen_climate_temperature') | float(0) }}"
+                t_off: "{{ states('input_number.pipe_protection_kitchen_off_temp') | float(4) }}"
+
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "✅ Pipe protection STOPPED"
+                message: "Kitchen recovered to {{ temp_now | round(1) }}°C (≥ {{ t_off }}°C). Heater OFF."
+                data:
+                  ttl: 0
+                  priority: high
+
+            - action: notify.send_message
+              target:
+                entity_id: notify.telegram_ebrzsmbrbot
+              data:
+                message: "✅ *Pipe protection STOPPED* — Kitchen {{ temp_now | round(1) }}°C (≥ {{ t_off }}°C). Heater OFF."
+
+        # 2) Sensor unavailable -> keep heater ON but rely on timer cap
+        - conditions:
+            - condition: trigger
+              id: sensor_unavailable
+          sequence:
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "⚠️ Pipe protection sensor unavailable"
+                message: >-
+                  Kitchen temp sensor is unavailable for 10+ minutes.
+                  Heater remains ON until the max runtime timer ends (failsafe).
+                data:
+                  ttl: 0
+                  priority: high
+
+            - action: notify.send_message
+              target:
+                entity_id: notify.telegram_ebrzsmbrbot
+              data:
+                message: >-
+                  ⚠️ *Pipe protection sensor unavailable* (10+ min).
+                  Heater stays ON until timer ends (failsafe max runtime).
+
+      default:
+        # 3) Timer finished -> stop no matter what, and warn if temp didn't recover
+        - variables:
+            temp_now_raw: "{{ states('sensor.kitchen_climate_temperature') }}"
+            temp_now: "{{ states('sensor.kitchen_climate_temperature') | float(-999) }}"
+            t_off: "{{ states('input_number.pipe_protection_kitchen_off_temp') | float(4) }}"
+        - action: switch.turn_off
+          target:
+            entity_id: switch.kitchen_heater
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.pipe_protection_active
+
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: "🛑 Pipe protection ENDED (timer)"
+            message: >-
+              Max runtime reached — heater turned OFF.
+              Current kitchen temp: {{ temp_now_raw }}.
+              {% if temp_now != -999 and temp_now < t_off %}
+              ⚠️ Temperature did not recover above {{ t_off }}°C — check insulation/heater/sensor placement.
+              {% endif %}
+            data:
+              ttl: 0
+              priority: high
+
+        - action: notify.send_message
+          target:
+            entity_id: notify.telegram_ebrzsmbrbot
+          data:
+            message: >-
+              🛑 *Pipe protection ended (timer)* — heater OFF.
+              Current kitchen temp: {{ temp_now_raw }}.
+              {% if temp_now != -999 and temp_now < t_off %}
+              ⚠️ Temp did not recover above {{ t_off }}°C — investigate.
+              {% endif %}
