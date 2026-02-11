@@ -1,0 +1,37 @@
+###############################################################################
+# Helpers used by the protection automations
+###############################################################################
+
+input_boolean:
+  pipe_protection_active:
+    name: Pipe protection active (kitchen)
+    icon: mdi:pipe
+
+input_number:
+  pipe_protection_kitchen_on_temp:
+    name: Pipe protection ON threshold (kitchen)
+    min: -20
+    max: 10
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 1
+
+  pipe_protection_kitchen_off_temp:
+    name: Pipe protection OFF threshold (kitchen)
+    min: 0
+    max: 20
+    step: 0.5
+    unit_of_measurement: "°C"
+    initial: 4
+
+  pipe_protection_kitchen_max_runtime_minutes:
+    name: Pipe protection max runtime (minutes)
+    min: 5
+    max: 180
+    step: 5
+    unit_of_measurement: "min"
+    initial: 60
+
+timer:
+  pipe_protection_kitchen:
+    name: Pipe protection timer (kitchen)
