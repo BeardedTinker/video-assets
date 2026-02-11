@@ -1,0 +1,80 @@
+###############################################################################
+# Rain Tank — Low Water Cutoff + Level Alerts
+#
+# - If tank too low and pump is ON -> force OFF + notify
+# - Also sends low/high water alerts
+#
+# Entities used:
+# - sensor.rain_tank_level_liquid_depth (cm)
+# - switch.water_pump
+# - input_boolean.sleep_mode
+# - notify.mobile_app_pixel_9_pro_xl
+###############################################################################
+
+- id: protection_rain_tank_low_water_cutoff
+  alias: "Protection — Rain Tank Low Water Cutoff"
+  description: "Prevents pump operation when rain tank level is too low."
+  mode: parallel
+
+  trigger:
+    - trigger: numeric_state
+      entity_id: sensor.rain_tank_level_liquid_depth
+      below: 25
+    - trigger: numeric_state
+      entity_id: sensor.rain_tank_level_liquid_depth
+      above: 150
+    - trigger: state
+      entity_id: switch.water_pump
+      to: "on"
+
+  condition:
+    - condition: state
+      entity_id: input_boolean.sleep_mode
+      state: "off"
+
+    # simple anti-spam (5 min)
+    - condition: template
+      value_template: >-
+        {% set last = state_attr(this.entity_id, 'last_triggered') %}
+        {{ last is none or (as_timestamp(now()) - as_timestamp(last)) > 300 }}
+
+  action:
+    - choose:
+        # HARD cutoff
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.rain_tank_level_liquid_depth
+              below: 20
+            - condition: state
+              entity_id: switch.water_pump
+              state: "on"
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.water_pump
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "🚫 Rain Tank Pump Blocked"
+                message: "Pump disabled — water too low ({{ states('sensor.rain_tank_level_liquid_depth') }} cm)."
+
+        # Low level warning
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.rain_tank_level_liquid_depth
+              below: 30
+          sequence:
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "⚠️ Rain Tank Low Level"
+                message: "Water level low ({{ states('sensor.rain_tank_level_liquid_depth') }} cm)."
+
+        # High level info
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.rain_tank_level_liquid_depth
+              above: 160
+          sequence:
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "💧 Rain Tank Almost Full"
+                message: "Water level high ({{ states('sensor.rain_tank_level_liquid_depth') }} cm)."
