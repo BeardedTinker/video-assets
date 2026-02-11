@@ -1,0 +1,131 @@
+###############################################################################
+# Freeze Protection — Rain Tank (Forecast + Live Validation)
+#
+# - Uses daily + hourly forecast from weather.home
+# - Warns if frost/hard-freeze is expected soon
+# - Escalates to CRITICAL if the outdoor reference sensor is already below 0°C
+#
+# Entities used:
+# - weather.home
+# - sensor.master_balcony_air_quality_temperature
+# - sensor.rain_tank_level_liquid_depth
+# - input_boolean.sleep_mode
+# - notify.mobile_app_pixel_9_pro_xl
+# - notify.telegram_ebrzsmbrbot
+###############################################################################
+
+- id: protection_rain_tank_freeze_forecast
+  alias: "Protection — Rain Tank Freeze Risk (forecast + live)"
+  description: "Forecast-driven freeze warning + immediate escalation based on live outdoor temperature."
+  mode: single
+
+  trigger:
+    - trigger: time
+      at: "10:00:00"
+    - trigger: numeric_state
+      entity_id: sensor.master_balcony_air_quality_temperature
+      below: 0
+
+  condition:
+    - condition: numeric_state
+      entity_id: sensor.rain_tank_level_liquid_depth
+      above: 0
+
+    - condition: state
+      entity_id: input_boolean.sleep_mode
+      state: "off"
+
+  action:
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.home
+      data:
+        type: daily
+      response_variable: forecast_daily
+
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.home
+      data:
+        type: hourly
+      response_variable: forecast_hourly
+
+    - variables:
+        daily: "{{ forecast_daily['weather.home']['forecast'] }}"
+        hourly: "{{ forecast_hourly['weather.home']['forecast'] }}"
+
+        # thresholds
+        daily_frost_threshold: 2      # °C (templow)
+        hourly_hard_freeze_threshold: 0  # °C
+
+        cold_days: "{{ daily | selectattr('templow','le', daily_frost_threshold) | list }}"
+        cold_hours: "{{ hourly | selectattr('temperature','le', hourly_hard_freeze_threshold) | list }}"
+
+        next_cold_day: >-
+          {% if cold_days | count > 0 %}
+            {{ (cold_days | sort(attribute='datetime'))[0] }}
+          {% else %} {{ none }} {% endif %}
+
+        next_cold_hour: >-
+          {% if cold_hours | count > 0 %}
+            {{ (cold_hours | sort(attribute='datetime'))[0] }}
+          {% else %} {{ none }} {% endif %}
+
+        outdoor_now: "{{ states('sensor.master_balcony_air_quality_temperature') | float(99) }}"
+        tank_cm: "{{ states('sensor.rain_tank_level_liquid_depth') }}"
+
+    - choose:
+        # LIVE hard freeze right now
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.master_balcony_air_quality_temperature
+              below: 0
+          sequence:
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "🚨 FREEZE NOW — Tank MUST Be Empty"
+                message: "Outdoor {{ outdoor_now | round(1) }}°C. Drain tank immediately. (Tank: {{ tank_cm }} cm)"
+                data:
+                  ttl: 0
+                  priority: high
+
+            - action: notify.send_message
+              target:
+                entity_id: notify.telegram_ebrzsmbrbot
+              data:
+                message: "🚨 *FREEZE NOW* Outdoor {{ outdoor_now | round(1) }}°C — tank must be empty. (Tank: {{ tank_cm }} cm)"
+
+        # Forecast risk exists (hourly preferred, else daily)
+        - conditions:
+            - condition: template
+              value_template: "{{ next_cold_hour is not none or next_cold_day is not none }}"
+          sequence:
+            - variables:
+                when_text: >-
+                  {% if next_cold_hour is not none %}
+                    Hard freeze expected:
+                    {{ as_timestamp(next_cold_hour.datetime) | timestamp_custom('%d/%m %H:%M', true) }}
+                    ({{ next_cold_hour.temperature }}°C)
+                  {% else %}
+                    Frost expected:
+                    {{ as_timestamp(next_cold_day.datetime) | timestamp_custom('%d/%m', true) }}
+                    ({{ next_cold_day.templow }}°C low)
+                  {% endif %}
+
+            - action: notify.mobile_app_pixel_9_pro_xl
+              data:
+                title: "❄️ Frost Risk — Tank Action Needed"
+                message: "{{ when_text }}. Drain/prepare the tank. (Tank: {{ tank_cm }} cm)"
+
+            - action: notify.send_message
+              target:
+                entity_id: notify.telegram_ebrzsmbrbot
+              data:
+                message: "❄️ *Frost Alert* {{ when_text }}. Drain/prepare the tank. (Tank: {{ tank_cm }} cm)"
+
+      default:
+        - action: notify.send_message
+          target:
+            entity_id: notify.telegram_ebrzsmbrbot
+          data:
+            message: "✅ *No frost risk detected* in forecast right now."
