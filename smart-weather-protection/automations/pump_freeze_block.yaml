@@ -1,0 +1,70 @@
+###############################################################################
+# Pump Freeze Block (hard safety)
+#
+# If outdoor reference temp < 1°C, pump must NOT run.
+# If the pump is turned on anyway -> turn it off immediately + critical notify.
+#
+# Entities used:
+# - switch.water_pump
+# - sensor.master_balcony_air_quality_temperature
+# - notify.mobile_app_pixel_9_pro_xl
+# - notify.telegram_ebrzsmbrbot
+###############################################################################
+
+- id: protection_pump_freeze_block
+  alias: "Protection — Pump Freeze Block (force OFF < 1°C)"
+  description: "Forces pump OFF when outdoor temp is below 1°C (even if tank has water)."
+  mode: single
+
+  trigger:
+    - trigger: state
+      entity_id: switch.water_pump
+      to: "on"
+
+    - trigger: numeric_state
+      entity_id: sensor.master_balcony_air_quality_temperature
+      below: 1
+
+  condition:
+    # Cooldown to avoid notification spam (10 minutes)
+    - condition: template
+      value_template: >-
+        {% set last = state_attr(this.entity_id, 'last_triggered') %}
+        {{ last is none or (as_timestamp(now()) - as_timestamp(last)) > 600 }}
+
+    - condition: template
+      value_template: >-
+        {{ states('sensor.master_balcony_air_quality_temperature') not in
+           ['unknown','unavailable','none','None',''] }}
+
+    - condition: numeric_state
+      entity_id: sensor.master_balcony_air_quality_temperature
+      below: 1
+
+  action:
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: switch.water_pump
+              state: "on"
+          sequence:
+            - action: switch.turn_off
+              target:
+                entity_id: switch.water_pump
+
+    - variables:
+        t: "{{ states('sensor.master_balcony_air_quality_temperature') | float(0) }}"
+
+    - action: notify.mobile_app_pixel_9_pro_xl
+      data:
+        title: "🛑 Pump BLOCKED — Freeze Risk"
+        message: "Outdoor {{ t | round(1) }}°C (< 1°C). Pump forced OFF to protect pipes."
+        data:
+          ttl: 0
+          priority: high
+
+    - action: notify.send_message
+      target:
+        entity_id: notify.telegram_ebrzsmbrbot
+      data:
+        message: "🛑 *Pump BLOCKED — Freeze Risk* Outdoor {{ t | round(1) }}°C (< 1°C). Pump forced OFF."
