@@ -1,6 +1,6 @@
 # Bearded Tinker — Video Assets
 
-This repository grows with the channel.  
+This repository grows with the channel. All YAML files are production examples used in my own Home Assistant setup. 
 Every folder contains real-world Home Assistant logic — tested, deployed, and running in production.
 
 You’ll find structured Home Assistant YAML examples, automation logic, helper configurations, and supporting files referenced in my YouTube videos (mostly Home Assistant, but also maker / hardware projects).
@@ -32,6 +32,9 @@ All examples are designed for practical, real-world setups — not lab demos.
 
 ### 🛠️ Maker / Hardware
 - [BambuCaster — 3D Printed Guitar Project](./bambucaster-3d-printed-electric-guitar/)
+
+### 🔐 Security & Observability
+- [I Built a SIEM for My Smart Home… (Wazuh + Home Assistant)](./smart-home-siem-wazuh/) — Wazuh SIEM integration, REST sensors, and security scoring for Home Assistant 
 
 ## ⚠️ Notes
 - Secrets, tokens, and personal identifiers are removed or replaced with placeholders.
