@@ -68,6 +68,400 @@ Treating it with **proper observability and security monitoring** is no longer o
 Wazuh makes that possible without enterprise budgets.
 
 ---
+sensor:
+  # Wazuh REST sensors
+  # Querying Wazuh indexer from Home Assistant
+
+
+	# -----------------------------
+	# KPI: Last 24h counts (size:0)
+	# -----------------------------
+
+	- platform: rest
+	  name: "Wazuh Critical 24h"
+	  unique_id: wazuh_critical_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "gte": 15 } } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
+	  scan_interval: 300
+
+	- platform: rest
+	  name: "Wazuh High 24h"
+	  unique_id: wazuh_high_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "gte": 12, "lte": 14 } } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
+	  scan_interval: 300
+
+	- platform: rest
+	  name: "Wazuh Medium 24h"
+	  unique_id: wazuh_medium_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "gte": 7, "lte": 11 } } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
+	  scan_interval: 300
+
+	- platform: rest
+	  name: "Wazuh Low 24h"
+	  unique_id: wazuh_low_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "lte": 6 } } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
+	  scan_interval: 300
+
+
+	# -----------------------------
+	# FEED 1: Security-only (Last 5)
+	# -----------------------------
+	- platform: rest
+	  name: "Wazuh Security Last 5"
+	  unique_id: wazuh_security_last_5
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 5,
+		  "sort": [{"@timestamp": {"order": "desc"}}],
+		  "_source": [
+			"@timestamp","rule","agent","decoder","data",
+			"location","full_log"
+		  ],
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "gte": 10 } } }
+			  ],
+			  "must_not": [
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ (value_json.hits.hits | length) if value_json.hits is defined else 0 }}"
+	  json_attributes_path: "$.hits"
+	  json_attributes:
+		- "hits"
+	  scan_interval: 120
+
+
+	# -----------------------------
+	# FEED 2: Ops/Maintenance (Last 5)
+	# -----------------------------
+	- platform: rest
+	  name: "Wazuh Ops Last 5"
+	  unique_id: wazuh_ops_last_5
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 5,
+		  "sort": [{"@timestamp": {"order": "desc"}}],
+		  "_source": [
+			"@timestamp","rule","agent","decoder","data",
+			"location","full_log"
+		  ],
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "range": { "rule.level": { "gte": 7 } } },
+				{ "term":  { "agent.name": "wazuh" } }
+			  ],
+			  "must_not": [
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } }
+			  ]
+			}
+		  }
+		}
+	  value_template: "{{ (value_json.hits.hits | length) if value_json.hits is defined else 0 }}"
+	  json_attributes_path: "$.hits"
+	  json_attributes:
+		- "hits"
+	  scan_interval: 120
+
+
+	# -----------------------------
+	# Intel
+	# -----------------------------
+	- platform: rest
+	  name: "Wazuh Top Rule 24h"
+	  unique_id: wazuh_top_rule_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } }
+			  ],
+			  "must_not": [
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } }
+			  ]
+			}
+		  },
+		  "aggs": {
+			"top_rule": {
+			  "terms": { "field": "rule.id", "size": 1 },
+			  "aggs": {
+				"sample": {
+				  "top_hits": {
+					"size": 1,
+					"_source": ["rule.id","rule.description"]
+				  }
+				}
+			  }
+			}
+		  }
+		}
+	  value_template: >
+		{% if value_json.aggregations is defined
+		   and value_json.aggregations.top_rule is defined
+		   and value_json.aggregations.top_rule.buckets is defined
+		   and (value_json.aggregations.top_rule.buckets|length) > 0 %}
+		  {% set b = value_json.aggregations.top_rule.buckets[0] %}
+		  {% set s = b.sample.hits.hits[0]._source %}
+		  {{ s.rule.description }} (ID {{ s.rule.id }}, {{ b.doc_count }}x)
+		{% else %}
+		  n/a
+		{% endif %}
+	  scan_interval: 300
+
+
+	- platform: rest
+	  name: "Wazuh WAN_LOCAL Drops 24h"
+	  unique_id: wazuh_wan_local_drops_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } },
+				{ "term": { "rule.id": "100110" } }
+			  ]
+			}
+		  }
+		}
+	  value_template: >
+		{% if value_json.hits is not defined %}
+		  0
+		{% else %}
+		  {% set v = value_json.hits.total.value | int(0) %}
+		  {% set rel = value_json.hits.total.relation | default('eq') %}
+		  {{ v ~ ('+' if rel == 'gte' else '') }}
+		{% endif %}
+	  scan_interval: 300
+
+
+	- platform: rest
+	  name: "Wazuh Top WAN_LOCAL Source IP 24h"
+	  unique_id: wazuh_top_wan_local_srcip_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } },
+				{ "term": { "rule.id": "100110" } }
+			  ]
+			}
+		  },
+		  "runtime_mappings": {
+			"srcip_rt": {
+			  "type": "keyword",
+			  "script": {
+				"source": """
+				  def s = null;
+				  if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) {
+					s = doc['full_log.keyword'].value;
+				  } else if (doc.containsKey('full_log') && !doc['full_log'].empty) {
+					s = doc['full_log'].value;
+				  }
+				  if (s != null) {
+					def m = /SRC=([0-9.]+)/.matcher(s);
+					if (m.find()) emit(m.group(1));
+				  }
+				"""
+			  }
+			}
+		  },
+		  "aggs": {
+			"top_srcip": { "terms": { "field": "srcip_rt", "size": 1 } }
+		  }
+		}
+	  value_template: >
+		{% if value_json.aggregations is defined
+		   and value_json.aggregations.top_srcip is defined
+		   and value_json.aggregations.top_srcip.buckets is defined
+		   and (value_json.aggregations.top_srcip.buckets|length) > 0 %}
+		  {% set b = value_json.aggregations.top_srcip.buckets[0] %}
+		  {{ b.key }} ({{ b.doc_count }}x)
+		{% else %}
+		  n/a
+		{% endif %}
+	  scan_interval: 300
+
+
+	- platform: rest
+	  name: "Wazuh Top WAN_LOCAL DPT 24h"
+	  unique_id: wazuh_top_wan_local_dpt_24h
+	  method: POST
+	  resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+	  verify_ssl: false
+	  username: !secret wazuh_proxy_user
+	  password: !secret wazuh_proxy_pass
+	  headers:
+		Content-Type: application/json
+	  payload: >
+		{
+		  "size": 0,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{ "range": { "@timestamp": { "gte": "now-24h" } } },
+				{ "match_phrase": { "decoder.name": "unifi-ucg-firewall" } },
+				{ "term": { "rule.id": "100110" } }
+			  ]
+			}
+		  },
+		  "runtime_mappings": {
+			"dpt_rt": {
+			  "type": "keyword",
+			  "script": {
+				"source": """
+				  def s = null;
+				  if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) {
+					s = doc['full_log.keyword'].value;
+				  } else if (doc.containsKey('full_log') && !doc['full_log'].empty) {
+					s = doc['full_log'].value;
+				  }
+				  if (s != null) {
+					def m = /DPT=([0-9]+)/.matcher(s);
+					if (m.find()) emit(m.group(1));
+				  }
+				"""
+			  }
+			}
+		  },
+		  "aggs": {
+			"top_dpt": { "terms": { "field": "dpt_rt", "size": 1 } }
+		  }
+		}
+	  value_template: >
+		{% if value_json.aggregations is defined
+		   and value_json.aggregations.top_dpt is defined
+		   and value_json.aggregations.top_dpt.buckets is defined
+		   and (value_json.aggregations.top_dpt.buckets|length) > 0 %}
+		  {% set b = value_json.aggregations.top_dpt.buckets[0] %}
+		  Port {{ b.key }} ({{ b.doc_count }}x)
+		{% else %}
+		  n/a
+		{% endif %}
+	  scan_interval: 300
+
 
 # License
 
