@@ -3,3 +3,44 @@ Contains template sensors used for:
 
 • security scoring  
 • UI-friendly alert display
+
+template:
+  - sensor:
+
+      - name: "SIEM Security Score"
+        unique_id: siem_security_score
+        state: >
+          {% set score = 100 %}
+          {% set c = states('sensor.wazuh_critical_24h')|int %}
+          {% set h = states('sensor.wazuh_high_24h')|int %}
+          {% set m = states('sensor.wazuh_medium_24h')|int %}
+
+          {% if c > 0 %}
+            {% set score = score - 40 %}
+          {% endif %}
+
+          {% if h > 2500 %}
+            {% set score = score - 20 %}
+          {% elif h > 1500 %}
+            {% set score = score - 10 %}
+          {% endif %}
+
+          {% if m > 20 %}
+            {% set score = score - 10 %}
+          {% elif m > 10 %}
+            {% set score = score - 5 %}
+          {% endif %}
+
+          {{ score }}
+
+        unit_of_measurement: "%"
+
+      - name: "Wazuh Low 24h Display"
+        unique_id: wazuh_low_24h_display
+        state: >
+          {% set v = states('sensor.wazuh_low_24h') %}
+          {% if v|int >= 10000 %}
+            10000+
+          {% else %}
+            {{ v }}
+          {% endif %}
