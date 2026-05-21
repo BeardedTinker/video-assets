@@ -1,0 +1,32 @@
+alias: Rain Tank - Pump State Controller
+description: >-
+  Centralized pump control. The pump follows the Rain Tank Pump Allowed
+  binary sensor. Other automations should not control the pump directly.
+
+triggers:
+  - entity_id: binary_sensor.rain_tank_pump_allowed
+    trigger: state
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: binary_sensor.rain_tank_pump_allowed
+            state: "on"
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.water_pump
+
+      - conditions:
+          - condition: state
+            entity_id: binary_sensor.rain_tank_pump_allowed
+            state: "off"
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.water_pump
+
+mode: restart
