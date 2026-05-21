@@ -1,0 +1,139 @@
+alias: Rain Tank - Frost Risk Forecast
+description: >-
+  Check daily and hourly weather forecasts plus live temperature data
+  to detect possible frost risk for the rain tank system.
+
+triggers:
+  - trigger: time
+    at: "10:00:00"
+
+  - trigger: numeric_state
+    entity_id: sensor.outdoor_temperature
+    below: 0
+    id: live_freeze
+
+conditions:
+  - condition: numeric_state
+    entity_id: sensor.rain_tank_fill_percentage
+    above: 0
+
+  - condition: state
+    entity_id: input_boolean.sleep_mode
+    state: "off"
+
+actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.home
+    data:
+      type: daily
+    response_variable: forecast_daily
+
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.home
+    data:
+      type: hourly
+    response_variable: forecast_hourly
+
+  - variables:
+      daily: "{{ forecast_daily['weather.home']['forecast'] }}"
+      hourly: "{{ forecast_hourly['weather.home']['forecast'] }}"
+
+      cold_days: "{{ daily | selectattr('templow', 'le', 2) | list }}"
+      cold_hours: "{{ hourly | selectattr('temperature', 'le', 0) | list }}"
+
+      next_cold_day_raw: >
+        {% if cold_days | count > 0 %}
+          {{ (cold_days | sort(attribute='datetime'))[0].datetime }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+      next_cold_hour_raw: >
+        {% if cold_hours | count > 0 %}
+          {{ (cold_hours | sort(attribute='datetime'))[0].datetime }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+      next_cold_day_ts: >
+        {% if next_cold_day_raw %}
+          {{ as_timestamp(next_cold_day_raw) | int }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+      next_cold_hour_ts: >
+        {% if next_cold_hour_raw %}
+          {{ as_timestamp(next_cold_hour_raw) | int }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+      cold_day_temp: >
+        {% if cold_days | count > 0 %}
+          {{ (cold_days | sort(attribute='datetime'))[0].templow }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+      cold_hour_temp: >
+        {% if cold_hours | count > 0 %}
+          {{ (cold_hours | sort(attribute='datetime'))[0].temperature }}
+        {% else %}
+          {{ none }}
+        {% endif %}
+
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: live_freeze
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.rain_tank_freeze_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Hard Freeze Now"
+              message: >-
+                Current outdoor temperature is
+                {{ states('sensor.outdoor_temperature') }}°C.
+                Rain tank freeze lockout enabled.
+
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ next_cold_hour_ts is not none or next_cold_day_ts is not none }}
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.rain_tank_freeze_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Frost Risk Detected"
+              message: >
+                {% if next_cold_hour_ts is not none %}
+                  Hard freeze expected soon:
+                  {{ next_cold_hour_ts | timestamp_custom('%d/%m %H:%M', true) }}
+                  ({{ cold_hour_temp }}°C).
+                  Rain tank freeze lockout enabled.
+                {% else %}
+                  Frost expected:
+                  {{ next_cold_day_ts | timestamp_custom('%d/%m', true) }}
+                  ({{ cold_day_temp }}°C).
+                  Rain tank freeze lockout enabled.
+                {% endif %}
+
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ next_cold_hour_ts is none and next_cold_day_ts is none }}
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.rain_tank_freeze_lockout
+
+mode: single
