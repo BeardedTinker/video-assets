@@ -1,0 +1,65 @@
+# Rain Tank Has Water
+
+- name: Rain Tank Has Water
+  unique_id: rain_tank_has_water
+  icon: mdi:water-check
+  state: >
+    {{ states('sensor.rain_tank_fill_percentage') | float(0) > 20 }}
+
+# Rain Tank Freeze Risk
+
+- name: Rain Tank Freeze Risk
+  unique_id: rain_tank_freeze_risk
+  icon: mdi:snowflake-alert
+  state: >
+    {{ is_state('input_boolean.rain_tank_freeze_lockout', 'on') }}
+
+# Rain Tank Pump Allowed
+
+- name: Rain Tank Pump Allowed
+  unique_id: rain_tank_pump_allowed
+  icon: >
+    {% if this.state == 'on' %}
+      mdi:pump
+    {% else %}
+      mdi:pump-off
+    {% endif %}
+  state: >
+    {{ is_state('input_boolean.rain_water_system_enabled', 'on')
+       and is_state('input_boolean.rain_tank_auto_mode', 'on')
+       and is_state('input_boolean.rain_tank_maintenance_mode', 'off')
+       and is_state('input_boolean.rain_tank_freeze_lockout', 'off')
+       and is_state('input_boolean.rain_tank_low_water_lockout', 'off')
+       and states('sensor.rain_tank_fill_percentage') | float(0) > 20 }}
+
+# Irrigation Allowed
+
+- name: Irrigation Allowed
+  unique_id: irrigation_allowed
+  icon: >
+    {% if this.state == 'on' %}
+      mdi:sprinkler
+    {% else %}
+      mdi:sprinkler-off
+    {% endif %}
+  state: >
+    {{ is_state('input_boolean.irrigation_enabled', 'on')
+       and is_state('binary_sensor.vegetable_zone_dry', 'on')
+       and states('sensor.rain_tank_fill_percentage') | float(0) > 40
+       and is_state('input_boolean.rain_tank_freeze_lockout', 'off') }}
+
+# Mediterranean Zone Dry
+
+- name: Mediterranean Zone Dry
+  unique_id: mediterranean_zone_dry
+  icon: mdi:leaf
+  state: >
+    {{ false }}
+
+# Vegetable Zone Dry
+
+- name: Vegetable Zone Dry
+  unique_id: vegetable_zone_dry
+  icon: mdi:water-alert
+  state: >
+    {{ false }}
