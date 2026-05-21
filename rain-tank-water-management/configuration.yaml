@@ -1,0 +1,10 @@
+# Rain Tank Water Management
+#
+# Example include structure used for this project.
+#
+# Adjust paths and filenames to match your own setup.
+
+automation: !include_dir_merge_list automations/
+
+template:
+  - binary_sensor: !include template_binary_sensors.yaml
