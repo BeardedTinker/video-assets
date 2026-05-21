@@ -14,6 +14,7 @@ Each video has its own folder (e.g. `smoke-detected-whole-house-alert-sensereo-m
 - optional diagrams, screenshots, or links
 
 All examples are designed for practical, real-world setups — not lab demos.
+Some projects are intentionally architecture-focused rather than plug-and-play, showing the logic and design patterns behind larger Home Assistant systems.
 
 ## Videos
 
@@ -23,6 +24,7 @@ All examples are designed for practical, real-world setups — not lab demos.
 
 ### 🌦️ Weather & Protection
 - [Weather That Actually Means Something (Smart Weather Protection)](./smart-weather-protection/)
+- [Rain Tank Water Management](./rain-tank-water-management/) — State-driven rain tank automation with pump protection, freeze lockouts, rain detection, irrigation permissions, and resource-management logic for Home Assistant.
 
 ### 🌡️ HVAC & Climate
 - [I Deleted My HVAC Automations and Used This Instead (Climate Scheduler)](./hvac-climate-scheduler-no-more-automations/)
