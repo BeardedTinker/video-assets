@@ -1,0 +1,108 @@
+alias: Rain Tank & Pump Monitor with Low-Water Guardrail
+description: >-
+  Monitor rain tank fill percentage, manage low-water guardrail state,
+  and notify. Pump control is handled only by Rain Tank - Pump State Controller.
+
+triggers:
+  - entity_id: sensor.rain_tank_fill_percentage
+    below: 20
+    trigger: numeric_state
+    id: critical_low
+
+  - entity_id: sensor.rain_tank_fill_percentage
+    below: 30
+    trigger: numeric_state
+    id: low_level
+
+  - entity_id: sensor.rain_tank_fill_percentage
+    above: 35
+    trigger: numeric_state
+    id: recovery
+
+  - entity_id: sensor.rain_tank_fill_percentage
+    above: 90
+    trigger: numeric_state
+    id: almost_full
+
+  - entity_id: switch.water_pump
+    to: "on"
+    trigger: state
+    id: pump_turned_on
+
+conditions:
+  - condition: state
+    entity_id: input_boolean.sleep_mode
+    state: "off"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: critical_low
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: pump_turned_on
+                  - condition: numeric_state
+                    entity_id: sensor.rain_tank_fill_percentage
+                    below: 20
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.rain_tank_low_water_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Rain Tank Pump Blocked"
+              message: >-
+                Low-water lockout enabled. Tank is critically low
+                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+                Pump control is handled by Pump State Controller.
+
+      - conditions:
+          - condition: trigger
+            id: low_level
+          - condition: numeric_state
+            entity_id: sensor.rain_tank_fill_percentage
+            above: 20
+        sequence:
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Rain Tank Low Level"
+              message: >-
+                Rain tank level is low
+                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+
+      - conditions:
+          - condition: trigger
+            id: recovery
+          - condition: state
+            entity_id: input_boolean.rain_tank_low_water_lockout
+            state: "on"
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.rain_tank_low_water_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Rain Tank Low-Water Lockout Cleared"
+              message: >-
+                Tank recovered above safe threshold
+                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+                Pump permission restored if all other conditions are safe.
+
+      - conditions:
+          - condition: trigger
+            id: almost_full
+        sequence:
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Rain Tank Almost Full"
+              message: >-
+                Rain tank is almost full
+                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+
+mode: single
