@@ -1,0 +1,69 @@
+# Example dashboard snippets used in the project.
+# These are intentionally partial examples instead of full dashboard exports.
+# Adjust entity IDs and layout for your own setup.
+
+type: vertical-stack
+cards:
+
+  - type: entities
+    title: Rain Tank System
+    show_header_toggle: false
+    entities:
+      - entity: sensor.rain_tank_fill_percentage
+        name: Tank Fill Percentage
+
+      - entity: sensor.rain_tank_volume
+        name: Tank Volume
+
+      - entity: switch.water_pump
+        name: Water Pump
+
+      - entity: binary_sensor.rain_tank_pump_allowed
+        name: Pump Allowed
+
+      - entity: input_boolean.rain_tank_low_water_lockout
+        name: Low-Water Lockout
+
+      - entity: input_boolean.rain_tank_freeze_lockout
+        name: Freeze Lockout
+
+      - entity: binary_sensor.rain_tank_has_water
+        name: Tank Has Water
+
+      - entity: binary_sensor.rain_tank_freeze_risk
+        name: Freeze Risk
+
+  - type: entities
+    title: Irrigation Logic
+    show_header_toggle: false
+    entities:
+      - entity: input_boolean.irrigation_enabled
+        name: Irrigation Enabled
+
+      - entity: binary_sensor.irrigation_allowed
+        name: Irrigation Allowed
+
+      - entity: binary_sensor.vegetable_zone_dry
+        name: Vegetable Zone Dry
+
+      - entity: binary_sensor.mediterranean_zone_dry
+        name: Mediterranean Zone Dry
+
+      - entity: input_datetime.last_rain_detected
+        name: Last Rain Detected
+
+  - type: weather-forecast
+    entity: weather.home
+    show_forecast: true
+
+  - type: history-graph
+    title: Rain Tank Activity
+    hours_to_show: 24
+    entities:
+      - entity: sensor.rain_tank_fill_percentage
+
+      - entity: switch.water_pump
+
+      - entity: binary_sensor.rain_tank_pump_allowed
+
+      - entity: input_boolean.rain_tank_low_water_lockout
