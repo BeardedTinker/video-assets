@@ -1,0 +1,31 @@
+alias: Rain Sensor - Store Last Rain Detected
+description: >-
+  Store timestamp when the rain sensor detects rain or moisture.
+  This is used as a context signal for future irrigation logic.
+
+triggers:
+  - entity_id: binary_sensor.master_balcony_rain
+    to: "on"
+    trigger: state
+    id: rain_detected
+
+conditions:
+  - condition: state
+    entity_id: input_boolean.sleep_mode
+    state: "off"
+
+actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.last_rain_detected
+    data:
+      datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+  - action: notify.mobile_app_your_phone
+    data:
+      title: "Rain Detected"
+      message: >-
+        Rain or moisture detected.
+        Timestamp stored in input_datetime.last_rain_detected.
+
+mode: single
