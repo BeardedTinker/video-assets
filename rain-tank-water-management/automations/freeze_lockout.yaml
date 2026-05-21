@@ -1,0 +1,54 @@
+alias: Rain Tank - Freeze Lockout Controller
+description: >-
+  Enable or disable freeze lockout state based on freeze-risk binary sensor.
+  Pump execution is handled separately by Pump State Controller.
+
+triggers:
+  - entity_id: binary_sensor.rain_tank_freeze_risk
+    to: "on"
+    trigger: state
+    id: freeze_detected
+
+  - entity_id: binary_sensor.rain_tank_freeze_risk
+    to: "off"
+    trigger: state
+    id: freeze_cleared
+
+conditions:
+  - condition: state
+    entity_id: input_boolean.sleep_mode
+    state: "off"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: freeze_detected
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.rain_tank_freeze_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Freeze Lockout Enabled"
+              message: >-
+                Freeze-risk conditions detected.
+                Rain tank system protection lockout enabled.
+
+      - conditions:
+          - condition: trigger
+            id: freeze_cleared
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.rain_tank_freeze_lockout
+
+          - action: notify.mobile_app_your_phone
+            data:
+              title: "Freeze Lockout Cleared"
+              message: >-
+                Freeze-risk conditions cleared.
+                Rain tank system returned to normal operation.
+
+mode: restart
