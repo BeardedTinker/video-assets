@@ -5,6 +5,8 @@
 # - If temp drops below 1°C -> turn on kitchen heater for up to 60 minutes
 # - Can stop earlier if temp rises above 4°C
 # - Runs even when Away (protection-grade behavior)
+# - Restores a valid active timer after a Home Assistant restart
+# - Forces the heater off if the restored state is incomplete
 #
 # Entities used:
 # - sensor.kitchen_climate_temperature
@@ -204,3 +206,71 @@
               {% if temp_now != -999 and temp_now < t_off %}
               ⚠️ Temp did not recover above {{ t_off }}°C — investigate.
               {% endif %}
+
+- id: kitchen_pipe_protection_startup_reconcile
+  alias: "Protection — Kitchen Pipe Protection (STARTUP RECONCILE)"
+  description: >-
+    Restores a valid active protection cycle or safely clears an incomplete
+    heater/timer/helper state after Home Assistant starts.
+  mode: single
+
+  trigger:
+    - trigger: homeassistant
+      event: start
+
+  condition:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: switch.kitchen_heater
+          state: "on"
+        - condition: state
+          entity_id: input_boolean.pipe_protection_active
+          state: "on"
+        - condition: state
+          entity_id: timer.pipe_protection_kitchen
+          state: active
+
+  action:
+    - if:
+        - condition: state
+          entity_id: switch.kitchen_heater
+          state: "on"
+        - condition: state
+          entity_id: input_boolean.pipe_protection_active
+          state: "on"
+        - condition: state
+          entity_id: timer.pipe_protection_kitchen
+          state: active
+      then:
+        - stop: "Active protection cycle restored with its remaining runtime."
+
+    - action: switch.turn_off
+      target:
+        entity_id: switch.kitchen_heater
+
+    - action: timer.cancel
+      target:
+        entity_id: timer.pipe_protection_kitchen
+
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.pipe_protection_active
+
+    - action: notify.mobile_app_pixel_9_pro_xl
+      data:
+        title: "🛑 Pipe protection reset after restart"
+        message: >-
+          An incomplete heater/timer state was detected after Home Assistant
+          started. The kitchen heater was forced OFF and protection was reset.
+        data:
+          ttl: 0
+          priority: high
+
+    - action: notify.send_message
+      target:
+        entity_id: notify.telegram_ebrzsmbrbot
+      data:
+        message: >-
+          🛑 *Pipe protection reset after restart* — An incomplete heater/timer
+          state was detected. Kitchen heater forced OFF and protection reset.

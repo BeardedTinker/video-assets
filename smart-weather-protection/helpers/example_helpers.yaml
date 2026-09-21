@@ -35,3 +35,4 @@ input_number:
 timer:
   pipe_protection_kitchen:
     name: Pipe protection timer (kitchen)
+    restore: true

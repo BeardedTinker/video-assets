@@ -32,6 +32,7 @@ These automations are designed for **advanced HA users** and production use.
 4) **Kitchen Pipe Protection**
 - If kitchen temperature drops below **1°C** → turns on heater for up to **60 minutes**.
 - Heater can stop earlier if temperature rises above **4°C**.
+- An active timer survives a Home Assistant restart; inconsistent restored states force the heater OFF.
 - Critical notifications on start/stop and if temperature does not recover.
 
 ---
@@ -84,6 +85,7 @@ These automations reduce risk but **cannot guarantee safety**.
 - Use proper insulation, drain valves, and frost-proof plumbing practices.
 - Avoid relying solely on a single battery sensor for critical protection.
 - Always verify behavior under real conditions (cold nights, restarts, sensor failures).
+- A heater cannot be controlled while Home Assistant or its relay integration is offline; use hardware-level thermal protection.
 
 ---
 
