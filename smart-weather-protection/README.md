@@ -22,8 +22,8 @@ These automations are designed for **advanced HA users** and production use.
 - Uses a real outdoor sensor for **“freeze right now” validation**.
 
 2) **Rain Tank Low Water Cutoff**
-- Prevents dry-running and sends warnings at low/high levels.
-- If the pump is ON and the water is too low → force OFF + notify.
+- Warns below **30 cm** and above **160 cm**.
+- Below **20 cm**, the pump is forced OFF and every new start attempt is blocked.
 
 3) **Pump Freeze Block (Hard Safety)**
 - If outdoor temp is < **1°C** → pump is not allowed to run (even if tank has water).
@@ -74,6 +74,7 @@ These automations are **Protection**, not Comfort.
 That’s why:
 - Pipe protection runs even if you’re **Away**
 - Pump is blocked during frost risk even if tank level is safe
+- Sleep mode suppresses notifications only; physical protection remains active
 
 ---
 
@@ -93,6 +94,9 @@ These automations reduce risk but **cannot guarantee safety**.
    - Pipe ON threshold: **1°C**
    - Pipe OFF threshold: **4°C**
    - Max runtime: **60 minutes**
+   - Low-water warning: **< 30 cm**
+   - Low-water hard cutoff: **< 20 cm**
+   - High-water notification: **> 160 cm**
    - Pump freeze block: **< 1°C**
 3) Decide how aggressive you want notifications and cooldowns.
 
