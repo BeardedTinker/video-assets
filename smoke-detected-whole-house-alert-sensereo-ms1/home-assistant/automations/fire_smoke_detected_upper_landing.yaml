@@ -1,11 +1,10 @@
 - id: bt_fire_smoke_detected_upper_landing
   alias: "FIRE – Smoke Detected (Upper Landing)"
   description: "Critical fire alert from smoke detector (Sensereo MS1 via Matter/Thread)"
-  mode: single
+  mode: parallel
+  max: 10
 
   variables:
-    cooldown_minutes: 10
-
     smoke_entity: binary_sensor.upper_landing_smoke_smoke
 
     notify_push: notify.mobile_app_pixel_9_pro_xl
@@ -23,59 +22,58 @@
     alert_lights:
       - light.garden_lights
 
-  trigger:
-    - platform: state
+  triggers:
+    - trigger: state
       entity_id: binary_sensor.upper_landing_smoke_smoke
       to: "on"
 
-  condition:
-    # Anti-spam: don't repeat within cooldown window
-    - condition: template
-      value_template: >
-        {% set last = this.attributes.last_triggered %}
-        {{ last is none or (now() - last).total_seconds() > (cooldown_minutes * 60) }}
+  actions:
+    - parallel:
+        - sequence:
+            - repeat:
+                for_each: "{{ shutdown_switches }}"
+                sequence:
+                  - action: switch.turn_off
+                    target:
+                      entity_id: "{{ repeat.item }}"
+                    continue_on_error: true
 
-  action:
-    - service: "{{ notify_push }}"
-      data:
-        title: "🔥 FIRE ALERT"
-        message: "Smoke detected on Upper Landing! Evacuate immediately."
-        data:
-          ttl: 0
-          priority: high
+        - sequence:
+            - repeat:
+                for_each: "{{ alert_lights }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ repeat.item }}"
+                    continue_on_error: true
 
-    - service: notify.send_message
-      target:
-        entity_id: "{{ notify_telegram }}"
-      data:
-        message: |-
-          🔥 *FIRE ALERT*
-          Smoke detected on Upper Landing!
-
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: >
-                {{ states(tts_player) not in ['unavailable','unknown','off'] }}
-          sequence:
-            - service: "{{ tts_script }}"
+        - sequence:
+            - action: "{{ notify_push }}"
               data:
-                message: "Warning. Smoke detected on upper floor. Please leave the house immediately."
+                title: "🔥 FIRE ALERT"
+                message: "Smoke detected on Upper Landing! Evacuate immediately."
+                data:
+                  ttl: 0
+                  priority: high
+              continue_on_error: true
 
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: "{{ shutdown_switches | length > 0 }}"
-          sequence:
-            - service: switch.turn_off
+        - sequence:
+            - action: notify.send_message
               target:
-                entity_id: "{{ shutdown_switches }}"
+                entity_id: "{{ notify_telegram }}"
+              data:
+                message: |-
+                  🔥 *FIRE ALERT*
+                  Smoke detected on Upper Landing!
+              continue_on_error: true
 
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: "{{ alert_lights | length > 0 }}"
-          sequence:
-            - service: light.turn_on
-              target:
-                entity_id: "{{ alert_lights }}"
+        - sequence:
+            - if:
+                - condition: template
+                  value_template: >
+                    {{ states(tts_player) not in ['unavailable', 'unknown', 'off'] }}
+              then:
+                - action: "{{ tts_script }}"
+                  data:
+                    message: "Warning. Smoke detected on upper floor. Please leave the house immediately."
+                  continue_on_error: true
