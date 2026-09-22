@@ -1,8 +1,11 @@
 template:
   - sensor:
-
       - name: "SIEM Security Score"
         unique_id: siem_security_score
+        availability: >-
+          {{ has_value('sensor.wazuh_critical_24h')
+             and has_value('sensor.wazuh_high_24h')
+             and has_value('sensor.wazuh_medium_24h') }}
         state: >
           {% set score = 100 %}
           {% set c = states('sensor.wazuh_critical_24h')|int %}
@@ -31,6 +34,7 @@ template:
 
       - name: "Wazuh Low 24h Display"
         unique_id: wazuh_low_24h_display
+        availability: "{{ has_value('sensor.wazuh_low_24h') }}"
         state: >
           {% set v = states('sensor.wazuh_low_24h') %}
           {% if v|int >= 10000 %}

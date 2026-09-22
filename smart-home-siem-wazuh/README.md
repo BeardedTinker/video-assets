@@ -104,6 +104,18 @@ sensors/
 
 Contains REST sensors querying the Wazuh indexer.
 
+```
+scripts/
+  validate-embedded-json.sh
+```
+
+Validates every embedded REST payload as strict JSON. Run it from the
+repository root with:
+
+```bash
+bash smart-home-siem-wazuh/scripts/validate-embedded-json.sh
+```
+
 ---
 
 ## Requirements
@@ -112,6 +124,7 @@ Contains REST sensors querying the Wazuh indexer.
 - Home Assistant **2026.1+**
 - Wazuh indexer accessible via API
 - credentials stored in `secrets.yaml`
+- HTTPS certificate verification configured as described below
 
 Example:
 
@@ -119,6 +132,23 @@ Example:
 wazuh_proxy_user: your_user
 wazuh_proxy_pass: your_password
 ```
+
+### HTTPS certificate requirements
+
+All REST sensors use `verify_ssl: true`. The HTTPS endpoint must therefore
+present a certificate chain trusted by the Python/system trust store used by
+Home Assistant. Use a reverse proxy with a publicly trusted certificate, or a
+private CA whose root certificate is installed in that trust store.
+
+Use a DNS hostname in each `resource` URL and issue the certificate with that
+hostname in its Subject Alternative Name (SAN). Connecting by IP address only
+works when the certificate contains that exact IP address as an IP SAN; a
+matching Common Name alone is not sufficient.
+
+The Home Assistant REST sensor has no per-sensor `ca_cert` option. A private CA
+must be trusted by the Home Assistant runtime globally, or TLS should terminate
+at a trusted reverse proxy. Do not disable verification to work around an
+untrusted chain or hostname mismatch.
 
 ---
 
@@ -139,6 +169,7 @@ Recommended setup:
 You will likely need to change:
 
 - Wazuh server IP
+- Wazuh HTTPS hostname and trusted certificate chain
 - index name
 - authentication credentials
 - entity IDs
@@ -147,7 +178,7 @@ You will likely need to change:
 Example from my setup:
 
 ```
-resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
+resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
 ```
 
 ---

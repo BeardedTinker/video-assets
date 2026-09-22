@@ -10,8 +10,8 @@ sensor:
     name: "Wazuh Critical 24h"
     unique_id: wazuh_critical_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -19,6 +19,7 @@ sensor:
     payload: >
       {
         "size": 0,
+        "track_total_hits": true,
         "query": {
           "bool": {
             "filter": [
@@ -28,6 +29,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
     scan_interval: 300
 
@@ -35,8 +40,8 @@ sensor:
     name: "Wazuh High 24h"
     unique_id: wazuh_high_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -44,6 +49,7 @@ sensor:
     payload: >
       {
         "size": 0,
+        "track_total_hits": true,
         "query": {
           "bool": {
             "filter": [
@@ -53,6 +59,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
     scan_interval: 300
 
@@ -60,8 +70,8 @@ sensor:
     name: "Wazuh Medium 24h"
     unique_id: wazuh_medium_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -69,6 +79,7 @@ sensor:
     payload: >
       {
         "size": 0,
+        "track_total_hits": true,
         "query": {
           "bool": {
             "filter": [
@@ -78,6 +89,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
     scan_interval: 300
 
@@ -85,8 +100,8 @@ sensor:
     name: "Wazuh Low 24h"
     unique_id: wazuh_low_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -94,6 +109,7 @@ sensor:
     payload: >
       {
         "size": 0,
+        "track_total_hits": true,
         "query": {
           "bool": {
             "filter": [
@@ -103,6 +119,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ value_json.hits.total.value if value_json.hits is defined else 0 }}"
     scan_interval: 300
 
@@ -113,8 +133,8 @@ sensor:
     name: "Wazuh Security Last 5"
     unique_id: wazuh_security_last_5
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -139,6 +159,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ (value_json.hits.hits | length) if value_json.hits is defined else 0 }}"
     json_attributes_path: "$.hits"
     json_attributes:
@@ -152,8 +176,8 @@ sensor:
     name: "Wazuh Ops Last 5"
     unique_id: wazuh_ops_last_5
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -179,6 +203,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: "{{ (value_json.hits.hits | length) if value_json.hits is defined else 0 }}"
     json_attributes_path: "$.hits"
     json_attributes:
@@ -192,8 +220,8 @@ sensor:
     name: "Wazuh Top Rule 24h"
     unique_id: wazuh_top_rule_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -210,21 +238,25 @@ sensor:
               { "match_phrase": { "decoder.name": "unifi-ucg-firewall" } }
             ]
           }
-        }
-      },
-      "aggs": {
-        "top_rule": {
-          "terms": { "field": "rule.id", "size": 1 },
-          "aggs": {
-            "sample": {
-              "top_hits": {
-                "size": 1,
-                "_source": ["rule.id","rule.description"]
+        },
+        "aggs": {
+          "top_rule": {
+            "terms": { "field": "rule.id", "size": 1 },
+            "aggs": {
+              "sample": {
+                "top_hits": {
+                  "size": 1,
+                  "_source": ["rule.id","rule.description"]
+                }
               }
             }
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: >
       {% if value_json.aggregations is defined
          and value_json.aggregations.top_rule is defined
@@ -242,8 +274,8 @@ sensor:
     name: "Wazuh WAN_LOCAL Drops 24h"
     unique_id: wazuh_wan_local_drops_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -251,6 +283,7 @@ sensor:
     payload: >
       {
         "size": 0,
+        "track_total_hits": true,
         "query": {
           "bool": {
             "filter": [
@@ -261,6 +294,10 @@ sensor:
           }
         }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: >
       {% if value_json.hits is not defined %}
         0
@@ -275,8 +312,8 @@ sensor:
     name: "Wazuh Top WAN_LOCAL Source IP 24h"
     unique_id: wazuh_top_wan_local_srcip_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -292,30 +329,23 @@ sensor:
               { "term": { "rule.id": "100110" } }
             ]
           }
-        }
-      },
-      "runtime_mappings": {
-        "srcip_rt": {
-          "type": "keyword",
-          "script": {
-            "source": """
-              def s = null;
-              if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) {
-                s = doc['full_log.keyword'].value;
-              } else if (doc.containsKey('full_log') && !doc['full_log'].empty) {
-                s = doc['full_log'].value;
-              }
-              if (s != null) {
-                def m = /SRC=([0-9.]+)/.matcher(s);
-                if (m.find()) emit(m.group(1));
-              }
-            """
+        },
+        "runtime_mappings": {
+          "srcip_rt": {
+            "type": "keyword",
+            "script": {
+              "source": "def s = null; if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) { s = doc['full_log.keyword'].value; } else if (doc.containsKey('full_log') && !doc['full_log'].empty) { s = doc['full_log'].value; } if (s != null) { def m = /SRC=([0-9.]+)/.matcher(s); if (m.find()) emit(m.group(1)); }"
+            }
           }
+        },
+        "aggs": {
+          "top_srcip": { "terms": { "field": "srcip_rt", "size": 1 } }
         }
-      },
-      "aggs": {
-        "top_srcip": { "terms": { "field": "srcip_rt", "size": 1 } }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: >
       {% if value_json.aggregations is defined
          and value_json.aggregations.top_srcip is defined
@@ -332,8 +362,8 @@ sensor:
     name: "Wazuh Top WAN_LOCAL DPT 24h"
     unique_id: wazuh_top_wan_local_dpt_24h
     method: POST
-    resource: "https://192.168.1.39:8443/wazuh-alerts-*/_search"
-    verify_ssl: false
+    resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    verify_ssl: true
     username: !secret wazuh_proxy_user
     password: !secret wazuh_proxy_pass
     headers:
@@ -349,30 +379,23 @@ sensor:
               { "term": { "rule.id": "100110" } }
             ]
           }
-        }
-      },
-      "runtime_mappings": {
-        "dpt_rt": {
-          "type": "keyword",
-          "script": {
-            "source": """
-              def s = null;
-              if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) {
-                s = doc['full_log.keyword'].value;
-              } else if (doc.containsKey('full_log') && !doc['full_log'].empty) {
-                s = doc['full_log'].value;
-              }
-              if (s != null) {
-                def m = /DPT=([0-9]+)/.matcher(s);
-                if (m.find()) emit(m.group(1));
-              }
-            """
+        },
+        "runtime_mappings": {
+          "dpt_rt": {
+            "type": "keyword",
+            "script": {
+              "source": "def s = null; if (doc.containsKey('full_log.keyword') && !doc['full_log.keyword'].empty) { s = doc['full_log.keyword'].value; } else if (doc.containsKey('full_log') && !doc['full_log'].empty) { s = doc['full_log'].value; } if (s != null) { def m = /DPT=([0-9]+)/.matcher(s); if (m.find()) emit(m.group(1)); }"
+            }
           }
+        },
+        "aggs": {
+          "top_dpt": { "terms": { "field": "dpt_rt", "size": 1 } }
         }
-      },
-      "aggs": {
-        "top_dpt": { "terms": { "field": "dpt_rt", "size": 1 } }
       }
+    availability: >-
+      {{ value_json is defined
+         and value_json is mapping
+         and value_json.error is not defined }}
     value_template: >
       {% if value_json.aggregations is defined
          and value_json.aggregations.top_dpt is defined
