@@ -8,6 +8,7 @@
 #  - switch.water_pump
 #  - input_number.water_pump_duration (seconds)
 #  - input_number.water_pump_interval (days)
+#  - input_datetime.water_pump_last_run
 #  - sensor.water_pump_battery        (% pump battery)
 ################################################################################
 
@@ -33,6 +34,28 @@ input_number:
     unit_of_measurement: "%"
     initial: 28
 
+  water_pump_duration:
+    name: Water pump duration
+    min: 1
+    max: 120
+    step: 1
+    unit_of_measurement: s
+    initial: 20
+
+  water_pump_interval:
+    name: Water pump interval
+    min: 1
+    max: 30
+    step: 1
+    unit_of_measurement: d
+    initial: 1
+
+input_datetime:
+  water_pump_last_run:
+    name: Water pump last run
+    has_date: true
+    has_time: true
+
 ################################################################################
 # Script: run pump for X seconds (failsafe built-in)
 ################################################################################
@@ -45,24 +68,44 @@ script:
         description: "How long to run the pump (seconds)"
         example: 20
     variables:
-      secs: >-
-        {{ (seconds
-            | default(states('input_number.water_pump_duration'))
-            | int(20)) }}
-      safe_secs: "{{ [secs, 120] | min }}"
+      requested_secs: >-
+        {{ seconds
+           | default(states('input_number.water_pump_duration'))
+           | int(0) }}
+      safe_secs: "{{ [requested_secs | int(0), 120] | min }}"
     sequence:
       - condition: state
         entity_id: input_boolean.watering_enabled
         state: "on"
 
-      - service: switch.turn_on
+      - condition: template
+        value_template: "{{ requested_secs | int(0) >= 1 }}"
+
+      - action: switch.turn_on
+        continue_on_error: true
         target:
           entity_id: switch.water_pump
 
-      - delay:
-          seconds: "{{ safe_secs }}"
+      - wait_template: "{{ is_state('switch.water_pump', 'on') }}"
+        timeout:
+          seconds: 10
+        continue_on_timeout: true
 
-      - service: switch.turn_off
+      - if:
+          - condition: state
+            entity_id: switch.water_pump
+            state: "on"
+        then:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.water_pump_last_run
+            data:
+              datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+          - delay:
+              seconds: "{{ safe_secs }}"
+
+      - action: switch.turn_off
         target:
           entity_id: switch.water_pump
 
@@ -70,28 +113,27 @@ script:
 # Automations
 ################################################################################
 automation:
-
   # 1) Interval-based watering (simple scheduler)
   - id: bt_watering_interval_schedule
     alias: Basil — Watering (interval schedule)
     mode: single
-    trigger:
-      - platform: time
+    triggers:
+      - trigger: time
         at: "10:00:00"
 
-    condition:
+    conditions:
       - condition: state
         entity_id: input_boolean.watering_enabled
         state: "on"
 
       - condition: template
         value_template: >-
-          {% set last = this.attributes.last_triggered %}
+          {% set last = as_timestamp(states('input_datetime.water_pump_last_run'), 0) %}
           {% set days = states('input_number.water_pump_interval') | int(1) %}
-          {{ last is none or (now() - last).total_seconds() > (days * 86400) }}
+          {{ last == 0 or now().timestamp() - last >= days * 86400 }}
 
-    action:
-      - service: script.water_pump_run_safe
+    actions:
+      - action: script.water_pump_run_safe
         data:
           seconds: "{{ states('input_number.water_pump_duration') | int(20) }}"
 
@@ -99,15 +141,16 @@ automation:
   - id: bt_watering_when_soil_low
     alias: Basil — Watering (soil moisture smart trigger)
     mode: single
-    trigger:
-      - platform: template
+    triggers:
+      - trigger: template
         value_template: >-
           {% set m = states('sensor.basil_humidity') | float(-1) %}
           {% set low = states('input_number.basil_moisture_low') | float(0) %}
           {{ m >= 0 and m < low }}
-        for: "00:10:00"
+        for:
+          minutes: 10
 
-    condition:
+    conditions:
       - condition: state
         entity_id: input_boolean.watering_enabled
         state: "on"
@@ -118,9 +161,9 @@ automation:
 
       - condition: template
         value_template: >-
-          {% set last = this.attributes.last_triggered %}
+          {% set last = as_timestamp(states('input_datetime.water_pump_last_run'), 0) %}
           {% set days = states('input_number.water_pump_interval') | int(1) %}
-          {{ last is none or (now() - last).total_seconds() > (days * 86400) }}
+          {{ last == 0 or now().timestamp() - last >= days * 86400 }}
 
       - condition: template
         value_template: >-
@@ -128,19 +171,20 @@ automation:
           {% set target = states('input_number.basil_moisture_target') | float(0) %}
           {{ m >= 0 and m < target }}
 
-    action:
-      - service: logbook.log
+    actions:
+      - action: logbook.log
         data:
           name: "Watering"
           message: >-
             Soil low ({{ states('sensor.basil_humidity') }}%). Watering for
             {{ states('input_number.water_pump_duration') }}s.
 
-      - service: script.water_pump_run_safe
+      - action: script.water_pump_run_safe
         data:
           seconds: "{{ states('input_number.water_pump_duration') | int(20) }}"
 
-      - delay: "00:20:00"
+      - delay:
+          minutes: 20
 
       - choose:
           - conditions:
@@ -150,7 +194,7 @@ automation:
                   {% set low = states('input_number.basil_moisture_low') | float(0) %}
                   {{ m >= 0 and m < low }}
             sequence:
-              - service: notify.telegram_ebrzsmbrbot
+              - action: notify.telegram_ebrzsmbrbot
                 data:
                   message: >-
                     ⚠️ Basil still reads very dry after watering.
@@ -158,53 +202,80 @@ automation:
 
   # 3) Pump failsafe
   - id: bt_watering_pump_failsafe_off
-    alias: Basil — Pump failsafe (force off after 2 min)
+    alias: Basil — Pump failsafe (force off after 130s)
     mode: single
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: homeassistant
+        event: start
+        id: startup
+      - trigger: state
         entity_id: switch.water_pump
         to: "on"
-        for: "00:02:00"
-    action:
-      - service: switch.turn_off
+        for:
+          seconds: 130
+        id: runtime
+    actions:
+      - action: switch.turn_off
+        continue_on_error: true
         target:
           entity_id: switch.water_pump
-      - service: notify.telegram_ebrzsmbrbot
-        data:
-          message: "🛑 Failsafe: water_pump was ON for 2 minutes — turned OFF."
+
+      - if:
+          - condition: trigger
+            id: startup
+        then:
+          - wait_template: >-
+              {{ states('switch.water_pump') not in ['unknown', 'unavailable'] }}
+
+          - if:
+              - condition: state
+                entity_id: switch.water_pump
+                state: "on"
+            then:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.water_pump
+
+      - if:
+          - condition: trigger
+            id: runtime
+        then:
+          - action: notify.telegram_ebrzsmbrbot
+            data:
+              message: "🛑 Failsafe: water_pump was ON for 130 seconds — turned OFF."
 
   # 4) Battery alerts (anti-spam)
   - id: bt_basil_soil_sensor_low_battery
     alias: Basil — Soil sensor low battery
     mode: single
-    trigger:
-      - platform: numeric_state
+    triggers:
+      - trigger: numeric_state
         entity_id: sensor.basic_battery
         below: 15
-    condition:
+    conditions:
       - condition: template
         value_template: >-
           {% set last = this.attributes.last_triggered %}
           {{ last is none or (now() - last).total_seconds() > 86400 }}
-    action:
-      - service: notify.telegram_ebrzsmbrbot
+    actions:
+      - action: notify.telegram_ebrzsmbrbot
         data:
           message: "🔋 Basil soil sensor battery low ({{ states('sensor.basic_battery') }}%)."
 
   - id: bt_basil_pump_low_battery
     alias: Basil — Water pump low battery
     mode: single
-    trigger:
-      - platform: numeric_state
+    triggers:
+      - trigger: numeric_state
         entity_id: sensor.water_pump_battery
         below: 20
-    condition:
+    conditions:
       - condition: template
         value_template: >-
           {% set last = this.attributes.last_triggered %}
           {{ last is none or (now() - last).total_seconds() > 86400 }}
-    action:
-      - service: notify.telegram_ebrzsmbrbot
+    actions:
+      - action: notify.telegram_ebrzsmbrbot
         data:
           message: "🔋 Water pump battery low ({{ states('sensor.water_pump_battery') }}%)."
 
@@ -212,17 +283,18 @@ automation:
   - id: bt_basil_soil_sensor_unavailable
     alias: Basil — Soil sensor unavailable
     mode: single
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id: sensor.basil_humidity
         to: "unavailable"
-        for: "00:10:00"
-    condition:
+        for:
+          minutes: 10
+    conditions:
       - condition: template
         value_template: >-
           {% set last = this.attributes.last_triggered %}
           {{ last is none or (now() - last).total_seconds() > 43200 }}
-    action:
-      - service: notify.telegram_ebrzsmbrbot
+    actions:
+      - action: notify.telegram_ebrzsmbrbot
         data:
           message: "⚠️ Basil soil sensor is unavailable for 10+ minutes. Check Zigbee mesh / battery."

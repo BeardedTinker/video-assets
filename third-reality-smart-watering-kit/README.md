@@ -1,5 +1,6 @@
 # Third Reality Smart Watering Kit (Home Assistant)
-**Video:** https://youtu.be/PLACEHOLDER_VIDEO_LINK  
+**Video:** https://youtu.be/PLACEHOLDER_VIDEO_LINK
+
 **Devices:**
 - Smart Watering Kit: https://thirdreality.com/product/smart-watering-kit/
 - Smart Soil Moisture Sensor: https://thirdreality.com/product/smart-soil-moisture-sensor/
@@ -7,7 +8,7 @@
 This folder contains Home Assistant YAML (HA 2026.1+) used to build a reliable, “set-and-forget” watering setup with:
 - interval-based watering (simple schedule)
 - optional soil-moisture “smart” top-up (only when truly dry)
-- pump failsafe (force off if stuck on)
+- pump safety checks, startup shutoff retry, and a 130-second runtime failsafe
 - battery alerts (soil sensor + pump)
 - health check for sensor availability
 
@@ -24,6 +25,7 @@ Replace these with your entity IDs:
 - `switch.water_pump`
 - `input_number.water_pump_duration` (seconds)
 - `input_number.water_pump_interval` (days)
+- `input_datetime.water_pump_last_run` (shared, persistent last accepted run)
 - `sensor.water_pump_battery` (% pump battery)
 - `notify.telegram_ebrzsmbrbot` (notifications)
 
@@ -40,5 +42,9 @@ Replace these with your entity IDs:
 - Adjust moisture thresholds:
   - `input_number.basil_moisture_low` (default 18%)
   - `input_number.basil_moisture_target` (default 28%)
+- Set `input_number.water_pump_duration` from **1–120 seconds** (default 20 seconds).
+- Set `input_number.water_pump_interval` from **1–30 days** (default 1 day).
+- Scheduled and soil-triggered watering share `input_datetime.water_pump_last_run`, so either accepted run starts the same persistent cooldown for both paths.
 - The “smart” watering trigger waits **10 minutes** under LOW before acting (anti-flap).
-- The pump run script has a hard cap of **120s** for safety.
+- The pump script rejects durations below 1 second, caps longer requests at **120 seconds**, and records the run only after the pump reports that it is on.
+- Home Assistant startup requests an immediate shutoff and waits to retry when the pump entity becomes available. A separate failsafe forces it off after **130 seconds** continuously on, leaving margin above the valid 120-second maximum.
