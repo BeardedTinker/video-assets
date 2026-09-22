@@ -1,7 +1,7 @@
 alias: Rain Tank & Pump Monitor with Low-Water Guardrail
 description: >-
   Monitor rain tank fill percentage, manage low-water guardrail state,
-  and notify. Pump control is handled only by Rain Tank - Pump State Controller.
+  and notify. Pump State Controller only stops unsafe pump operation.
 
 triggers:
   - entity_id: sensor.rain_tank_fill_percentage
@@ -29,10 +29,7 @@ triggers:
     trigger: state
     id: pump_turned_on
 
-conditions:
-  - condition: state
-    entity_id: input_boolean.sleep_mode
-    state: "off"
+conditions: []
 
 actions:
   - choose:
@@ -53,13 +50,18 @@ actions:
             target:
               entity_id: input_boolean.rain_tank_low_water_lockout
 
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Rain Tank Pump Blocked"
-              message: >-
-                Low-water lockout enabled. Tank is critically low
-                ({{ states('sensor.rain_tank_fill_percentage') }}%).
-                Pump control is handled by Pump State Controller.
+          - if:
+              - condition: state
+                entity_id: input_boolean.sleep_mode
+                state: "off"
+            then:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "Rain Tank Pump Blocked"
+                  message: >-
+                    Low-water lockout enabled. Tank is critically low
+                    ({{ states('sensor.rain_tank_fill_percentage') }}%).
+                    The safety interlock stops unsafe pump operation.
 
       - conditions:
           - condition: trigger
@@ -68,12 +70,17 @@ actions:
             entity_id: sensor.rain_tank_fill_percentage
             above: 20
         sequence:
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Rain Tank Low Level"
-              message: >-
-                Rain tank level is low
-                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+          - if:
+              - condition: state
+                entity_id: input_boolean.sleep_mode
+                state: "off"
+            then:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "Rain Tank Low Level"
+                  message: >-
+                    Rain tank level is low
+                    ({{ states('sensor.rain_tank_fill_percentage') }}%).
 
       - conditions:
           - condition: trigger
@@ -86,23 +93,33 @@ actions:
             target:
               entity_id: input_boolean.rain_tank_low_water_lockout
 
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Rain Tank Low-Water Lockout Cleared"
-              message: >-
-                Tank recovered above safe threshold
-                ({{ states('sensor.rain_tank_fill_percentage') }}%).
-                Pump permission restored if all other conditions are safe.
+          - if:
+              - condition: state
+                entity_id: input_boolean.sleep_mode
+                state: "off"
+            then:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "Rain Tank Low-Water Lockout Cleared"
+                  message: >-
+                    Tank recovered above safe threshold
+                    ({{ states('sensor.rain_tank_fill_percentage') }}%).
+                    Pump permission restored if all other conditions are safe.
 
       - conditions:
           - condition: trigger
             id: almost_full
         sequence:
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Rain Tank Almost Full"
-              message: >-
-                Rain tank is almost full
-                ({{ states('sensor.rain_tank_fill_percentage') }}%).
+          - if:
+              - condition: state
+                entity_id: input_boolean.sleep_mode
+                state: "off"
+            then:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "Rain Tank Almost Full"
+                  message: >-
+                    Rain tank is almost full
+                    ({{ states('sensor.rain_tank_fill_percentage') }}%).
 
 mode: single

@@ -7,9 +7,10 @@ triggers:
   - trigger: time
     at: "10:00:00"
 
-  - trigger: numeric_state
-    entity_id: sensor.outdoor_temperature
-    below: 0
+  - trigger: template
+    value_template: >-
+      {{ is_number(states('sensor.outdoor_temperature'))
+         and states('sensor.outdoor_temperature') | float <= 0 }}
     id: live_freeze
 
 conditions:
@@ -17,123 +18,215 @@ conditions:
     entity_id: sensor.rain_tank_fill_percentage
     above: 0
 
-  - condition: state
-    entity_id: input_boolean.sleep_mode
-    state: "off"
-
 actions:
-  - action: weather.get_forecasts
-    target:
-      entity_id: weather.home
-    data:
-      type: daily
-    response_variable: forecast_daily
-
-  - action: weather.get_forecasts
-    target:
-      entity_id: weather.home
-    data:
-      type: hourly
-    response_variable: forecast_hourly
-
-  - variables:
-      daily: "{{ forecast_daily['weather.home']['forecast'] }}"
-      hourly: "{{ forecast_hourly['weather.home']['forecast'] }}"
-
-      cold_days: "{{ daily | selectattr('templow', 'le', 2) | list }}"
-      cold_hours: "{{ hourly | selectattr('temperature', 'le', 0) | list }}"
-
-      next_cold_day_raw: >
-        {% if cold_days | count > 0 %}
-          {{ (cold_days | sort(attribute='datetime'))[0].datetime }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
-      next_cold_hour_raw: >
-        {% if cold_hours | count > 0 %}
-          {{ (cold_hours | sort(attribute='datetime'))[0].datetime }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
-      next_cold_day_ts: >
-        {% if next_cold_day_raw %}
-          {{ as_timestamp(next_cold_day_raw) | int }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
-      next_cold_hour_ts: >
-        {% if next_cold_hour_raw %}
-          {{ as_timestamp(next_cold_hour_raw) | int }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
-      cold_day_temp: >
-        {% if cold_days | count > 0 %}
-          {{ (cold_days | sort(attribute='datetime'))[0].templow }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
-      cold_hour_temp: >
-        {% if cold_hours | count > 0 %}
-          {{ (cold_hours | sort(attribute='datetime'))[0].temperature }}
-        {% else %}
-          {{ none }}
-        {% endif %}
-
   - choose:
       - conditions:
-          - condition: trigger
-            id: live_freeze
-        sequence:
-          - action: input_boolean.turn_on
-            target:
-              entity_id: input_boolean.rain_tank_freeze_lockout
-
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Hard Freeze Now"
-              message: >-
-                Current outdoor temperature is
-                {{ states('sensor.outdoor_temperature') }}°C.
-                Rain tank freeze lockout enabled.
-
-      - conditions:
           - condition: template
-            value_template: >
-              {{ next_cold_hour_ts is not none or next_cold_day_ts is not none }}
+            value_template: >-
+              {{ is_number(states('sensor.outdoor_temperature'))
+                 and states('sensor.outdoor_temperature') | float <= 0 }}
         sequence:
           - action: input_boolean.turn_on
             target:
               entity_id: input_boolean.rain_tank_freeze_lockout
 
-          - action: notify.mobile_app_your_phone
-            data:
-              title: "Frost Risk Detected"
-              message: >
-                {% if next_cold_hour_ts is not none %}
-                  Hard freeze expected soon:
-                  {{ next_cold_hour_ts | timestamp_custom('%d/%m %H:%M', true) }}
-                  ({{ cold_hour_temp }}°C).
-                  Rain tank freeze lockout enabled.
-                {% else %}
-                  Frost expected:
-                  {{ next_cold_day_ts | timestamp_custom('%d/%m', true) }}
-                  ({{ cold_day_temp }}°C).
-                  Rain tank freeze lockout enabled.
+          - if:
+              - condition: state
+                entity_id: input_boolean.sleep_mode
+                state: "off"
+            then:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "Hard Freeze Now"
+                  message: >-
+                    Current outdoor temperature is
+                    {{ states('sensor.outdoor_temperature') }}°C.
+                    Rain tank freeze lockout enabled.
+    default:
+      - action: weather.get_forecasts
+        continue_on_error: true
+        target:
+          entity_id: weather.home
+        data:
+          type: daily
+        response_variable: forecast_daily
+
+      - action: weather.get_forecasts
+        continue_on_error: true
+        target:
+          entity_id: weather.home
+        data:
+          type: hourly
+        response_variable: forecast_hourly
+
+      - variables:
+          daily: >-
+            {% set response = forecast_daily.get('weather.home', {})
+               if forecast_daily is defined and forecast_daily is mapping
+               else {} %}
+            {{ response.get('forecast', []) if response is mapping else [] }}
+          hourly: >-
+            {% set response = forecast_hourly.get('weather.home', {})
+               if forecast_hourly is defined and forecast_hourly is mapping
+               else {} %}
+            {{ response.get('forecast', []) if response is mapping else [] }}
+
+      - variables:
+          valid_daily: >-
+            {% set ns = namespace(items=[]) %}
+            {% if daily is iterable and daily is not string %}
+              {% for item in daily %}
+                {% if item is mapping
+                      and is_number(item.get('templow'))
+                      and item.get('datetime') %}
+                  {% set ns.items = ns.items + [item] %}
                 {% endif %}
+              {% endfor %}
+            {% endif %}
+            {{ ns.items }}
+          valid_hourly: >-
+            {% set ns = namespace(items=[]) %}
+            {% if hourly is iterable and hourly is not string %}
+              {% for item in hourly %}
+                {% if item is mapping
+                      and is_number(item.get('temperature'))
+                      and item.get('datetime') %}
+                  {% set ns.items = ns.items + [item] %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {{ ns.items }}
 
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ next_cold_hour_ts is none and next_cold_day_ts is none }}
-        sequence:
-          - action: input_boolean.turn_off
-            target:
-              entity_id: input_boolean.rain_tank_freeze_lockout
+      - variables:
+          forecast_available: >-
+            {{ valid_daily | count > 0 and valid_hourly | count > 0 }}
+          cold_days: >-
+            {% set ns = namespace(items=[]) %}
+            {% for item in valid_daily %}
+              {% if item.get('templow') | float > -100
+                    and item.get('templow') | float <= 2 %}
+                {% set ns.items = ns.items + [item] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.items }}
+          cold_hours: >-
+            {% set ns = namespace(items=[]) %}
+            {% for item in valid_hourly %}
+              {% if item.get('temperature') | float > -100
+                    and item.get('temperature') | float <= 0 %}
+                {% set ns.items = ns.items + [item] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.items }}
+
+      - variables:
+          next_cold_day_raw: >
+            {% if cold_days | count > 0 %}
+              {{ (cold_days | sort(attribute='datetime'))[0].datetime }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+          next_cold_hour_raw: >
+            {% if cold_hours | count > 0 %}
+              {{ (cold_hours | sort(attribute='datetime'))[0].datetime }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+      - variables:
+          next_cold_day_ts: >
+            {% if next_cold_day_raw %}
+              {{ as_timestamp(next_cold_day_raw, none) | int(0) }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+          next_cold_hour_ts: >
+            {% if next_cold_hour_raw %}
+              {{ as_timestamp(next_cold_hour_raw, none) | int(0) }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+          cold_day_temp: >
+            {% if cold_days | count > 0 %}
+              {{ (cold_days | sort(attribute='datetime'))[0].templow }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+          cold_hour_temp: >
+            {% if cold_hours | count > 0 %}
+              {{ (cold_hours | sort(attribute='datetime'))[0].temperature }}
+            {% else %}
+              {{ none }}
+            {% endif %}
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ not forecast_available
+                     or not is_number(states('sensor.outdoor_temperature')) }}
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.rain_tank_freeze_lockout
+
+              - if:
+                  - condition: state
+                    entity_id: input_boolean.sleep_mode
+                    state: "off"
+                then:
+                  - action: notify.mobile_app_your_phone
+                    data:
+                      title: "Freeze Data Unavailable"
+                      message: >-
+                        Live temperature or forecast data is unavailable.
+                        Rain tank freeze lockout enabled as a precaution.
+
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ next_cold_hour_ts is not none or next_cold_day_ts is not none }}
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.rain_tank_freeze_lockout
+
+              - if:
+                  - condition: state
+                    entity_id: input_boolean.sleep_mode
+                    state: "off"
+                then:
+                  - action: notify.mobile_app_your_phone
+                    data:
+                      title: "Frost Risk Detected"
+                      message: >
+                        {% if next_cold_hour_ts is not none %}
+                          Hard freeze expected soon:
+                          {{ next_cold_hour_ts | timestamp_custom('%d/%m %H:%M', true) }}
+                          ({{ cold_hour_temp }}°C).
+                          Rain tank freeze lockout enabled.
+                        {% else %}
+                          Frost expected:
+                          {{ next_cold_day_ts | timestamp_custom('%d/%m', true) }}
+                          ({{ cold_day_temp }}°C).
+                          Rain tank freeze lockout enabled.
+                        {% endif %}
+
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ next_cold_hour_ts is none and next_cold_day_ts is none }}
+              - condition: template
+                value_template: >-
+                  {{ is_number(states('sensor.outdoor_temperature'))
+                     and states('sensor.outdoor_temperature') | float > 0 }}
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.rain_tank_freeze_lockout
 
 mode: single

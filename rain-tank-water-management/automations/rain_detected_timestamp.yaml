@@ -9,10 +9,7 @@ triggers:
     trigger: state
     id: rain_detected
 
-conditions:
-  - condition: state
-    entity_id: input_boolean.sleep_mode
-    state: "off"
+conditions: []
 
 actions:
   - action: input_datetime.set_datetime
@@ -21,11 +18,16 @@ actions:
     data:
       datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
 
-  - action: notify.mobile_app_your_phone
-    data:
-      title: "Rain Detected"
-      message: >-
-        Rain or moisture detected.
-        Timestamp stored in input_datetime.last_rain_detected.
+  - if:
+      - condition: state
+        entity_id: input_boolean.sleep_mode
+        state: "off"
+    then:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "Rain Detected"
+          message: >-
+            Rain or moisture detected.
+            Timestamp stored in input_datetime.last_rain_detected.
 
 mode: single

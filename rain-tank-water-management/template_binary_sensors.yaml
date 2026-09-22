@@ -6,14 +6,6 @@
   state: >
     {{ states('sensor.rain_tank_fill_percentage') | float(0) > 20 }}
 
-# Rain Tank Freeze Risk
-
-- name: Rain Tank Freeze Risk
-  unique_id: rain_tank_freeze_risk
-  icon: mdi:snowflake-alert
-  state: >
-    {{ is_state('input_boolean.rain_tank_freeze_lockout', 'on') }}
-
 # Rain Tank Pump Allowed
 
 - name: Rain Tank Pump Allowed
@@ -48,7 +40,7 @@
        and states('sensor.rain_tank_fill_percentage') | float(0) > 40
        and is_state('input_boolean.rain_tank_freeze_lockout', 'off') }}
 
-# Mediterranean Zone Dry
+# Mediterranean Zone Dry (Placeholder)
 
 - name: Mediterranean Zone Dry
   unique_id: mediterranean_zone_dry
@@ -56,7 +48,7 @@
   state: >
     {{ false }}
 
-# Vegetable Zone Dry
+# Vegetable Zone Dry (Placeholder)
 
 - name: Vegetable Zone Dry
   unique_id: vegetable_zone_dry

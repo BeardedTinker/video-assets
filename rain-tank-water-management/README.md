@@ -47,13 +47,22 @@ Tank Level ──┤
 Temp Sensor ─┤
              ▼
       Home Assistant Logic
-             ▼
-     Pump Permissions
-             ▼
-      Shelly → Pump
+        ┌────┴─────┐
+        ▼          ▼
+  Pump Demand  Pump Permission
+        │          │
+        ▼          ▼
+  Shelly → Pump ← Off-Only Safety Interlock
 ```
 
 The system combines multiple imperfect signals together instead of relying on one “perfect” sensor.
+
+`switch.water_pump` directly runs the pump. A manual action or a separate
+demand automation must start and stop it; `binary_sensor.rain_tank_pump_allowed`
+is permission, not demand, and never starts the pump. Demand logic should check
+that permission is `on` before starting the pump. The pump-state controller is
+an off-only safety interlock that stops the pump whenever permission is `off`,
+`unknown`, or `unavailable`, including at Home Assistant startup.
 
 ---
 
@@ -98,9 +107,8 @@ Included:
 - Rain Tank Pump Allowed
 - Irrigation Allowed
 - Rain Tank Has Water
-- Rain Tank Freeze Risk
-- Vegetable Zone Dry
-- Mediterranean Zone Dry
+- Vegetable Zone Dry (placeholder; always `false` until real logic is added)
+- Mediterranean Zone Dry (placeholder; always `false` until real logic is added)
 
 See:
 `template_binary_sensors.yaml`
@@ -115,11 +123,8 @@ Protects the pump from running dry and enables low-water lockouts.
 ### frost_risk_forecast.yaml
 Uses forecast + live temperature data to predict freeze risk.
 
-### freeze_lockout.yaml
-Disables the system during dangerous freeze conditions.
-
 ### pump_state_controller.yaml
-Centralized pump execution logic based on permission states.
+Off-only safety interlock that stops unsafe pump operation. It never starts the pump.
 
 ### rain_detected_timestamp.yaml
 Stores the timestamp of recent rain detection events.
@@ -136,12 +141,6 @@ Dashboard focuses on:
 - permissions
 - tank status
 - irrigation logic
-
-Example screenshot:
-
-`images/dashboard-overview.png`
-
----
 
 ## Future Expansion
 

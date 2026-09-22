@@ -4,7 +4,6 @@
 
 type: vertical-stack
 cards:
-
   - type: entities
     title: Rain Tank System
     show_header_toggle: false
@@ -30,9 +29,6 @@ cards:
       - entity: binary_sensor.rain_tank_has_water
         name: Tank Has Water
 
-      - entity: binary_sensor.rain_tank_freeze_risk
-        name: Freeze Risk
-
   - type: entities
     title: Irrigation Logic
     show_header_toggle: false
@@ -44,10 +40,10 @@ cards:
         name: Irrigation Allowed
 
       - entity: binary_sensor.vegetable_zone_dry
-        name: Vegetable Zone Dry
+        name: Vegetable Zone Dry (Placeholder)
 
       - entity: binary_sensor.mediterranean_zone_dry
-        name: Mediterranean Zone Dry
+        name: Mediterranean Zone Dry (Placeholder)
 
       - entity: input_datetime.last_rain_detected
         name: Last Rain Detected
