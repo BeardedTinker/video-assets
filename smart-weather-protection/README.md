@@ -117,10 +117,11 @@ I didn’t include this in code because I don’t want to invent entity IDs that
 ## Install
 
 You can use these YAML files in one of these ways:
-- **packages** (recommended)
-- split includes:
-  - `automation: !include_dir_merge_list automations/`
-  - `input_boolean: !include helpers/example_helpers.yaml` etc.
+
+- **Package (recommended):** assemble one package with `automation`, `input_boolean`, `input_number`, and `timer` as top-level keys. Merge the lists from `automations/` under `automation`, and keep the three top-level domains from `helpers/example_helpers.yaml` unchanged.
+- **Per-domain includes:** include the files in `automations/` with `automation: !include_dir_merge_list <path>/automations/`, then copy each section of `helpers/example_helpers.yaml` into the matching existing `input_boolean`, `input_number`, and `timer` include file.
+
+Do not include the complete `helpers/example_helpers.yaml` under `input_boolean`; it contains three helper domains, not only input booleans.
 
 After adding files:
 1) Validate config

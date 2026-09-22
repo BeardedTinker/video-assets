@@ -1,7 +1,7 @@
 # Bearded Tinker — Video Assets
 
-This repository grows with the channel. All YAML files are production examples used in my own Home Assistant setup. 
-Every folder contains real-world Home Assistant logic — tested, deployed, and running in production.
+This repository grows with the channel. Its examples are adaptable reference implementations drawn from practical Home Assistant and maker projects.
+They may evolve after a video is published, so review and adapt each file for your own setup rather than assuming every file is deployed unchanged.
 
 You’ll find structured Home Assistant YAML examples, automation logic, helper configurations, and supporting files referenced in my YouTube videos (mostly Home Assistant, but also maker / hardware projects).
 
