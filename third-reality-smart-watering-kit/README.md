@@ -1,9 +1,12 @@
 # Third Reality Smart Watering Kit (Home Assistant)
-**Video:** https://youtu.be/PLACEHOLDER_VIDEO_LINK
+**Video:** https://youtu.be/Yoi7Hf0K4vE
 
 **Devices:**
-- Smart Watering Kit: https://thirdreality.com/product/smart-watering-kit/
-- Smart Soil Moisture Sensor: https://thirdreality.com/product/smart-soil-moisture-sensor/
+- [Smart Watering Kit Pro](https://www.thirdreality.com/products/smart-watering-kit-pro-1?ref=BeardedTinker) (*)
+- Smart Soil Moisture Sensor Gen1: no longer available
+- [Smart Soil Moisture Sensor Gen2](https://www.thirdreality.com/products/smart-soil-moisture-sensor-gen2?ref=BeardedTinker) (*) — current replacement for Gen1
+
+Links marked with (*) are affiliate links. I may earn a small commission if you buy through them, at no extra cost to you.
 
 This folder contains Home Assistant YAML (HA 2026.1+) used to build a reliable, “set-and-forget” watering setup with:
 - interval-based watering (simple schedule)

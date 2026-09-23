@@ -7,7 +7,7 @@ What started as a simple pump control setup slowly evolved into a full state-dri
 - freeze-risk lockouts
 - weather-aware irrigation logic
 - presence-aware pump control
-- future smart garden expansion
+- smart garden irrigation integration
 
 The goal was never “remote control”.
 
@@ -80,9 +80,9 @@ an off-only safety interlock that stops the pump whenever permission is `off`,
 
 - Third Reality soil moisture sensors
 
-- Sonoff Zigbee water valves (planned irrigation expansion)
+- Sonoff Zigbee water valves (implemented in the Smart Irrigation follow-up)
 
-(*) indicates affiliated links.
+(*) indicates affiliate links.
 
 ---
 
@@ -142,14 +142,13 @@ Dashboard focuses on:
 - tank status
 - irrigation logic
 
-## Future Expansion
+## Smart Irrigation Follow-up
 
-Planned additions:
-- drip irrigation
-- multi-zone watering
-- resource prioritization
-- weather-aware irrigation scheduling
-- smarter garden automation
+The irrigation placeholders in this project became the foundation for the
+[Smart Irrigation with Home Assistant](../smart-irrigation-home-assistant/) follow-up.
+It covers soil-moisture sensing, valve control, irrigation demand, and the
+delivery side of the system, while this project remains focused on the rain
+tank, pump, and shared safety constraints.
 
 ---
 

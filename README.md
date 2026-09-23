@@ -20,11 +20,14 @@ Some projects are intentionally architecture-focused rather than plug-and-play, 
 
 ### 🔔 Safety & Alerts
 - [Smoke Detected → Whole House Alert (Sensereo MS1)](./smoke-detected-whole-house-alert-sensereo-ms1/)
+
+### 💧 Water & Irrigation
 - [Third Reality Smart Watering Kit (Soil + Pump Automation)](./third-reality-smart-watering-kit/)
+- [Rain Tank Water Management](./rain-tank-water-management/) — Rainwater storage, pump protection, freeze lockouts, and shared irrigation permissions.
+- [Smart Irrigation with Home Assistant](./smart-irrigation-home-assistant/) — Soil-moisture sensing, Sonoff valve control, irrigation demand, and system safeguards.
 
 ### 🌦️ Weather & Protection
 - [Weather That Actually Means Something (Smart Weather Protection)](./smart-weather-protection/)
-- [Rain Tank Water Management](./rain-tank-water-management/) — State-driven rain tank automation with pump protection, freeze lockouts, rain detection, irrigation permissions, and resource-management logic for Home Assistant.
 
 ### 🌡️ HVAC & Climate
 - [I Deleted My HVAC Automations and Used This Instead (Climate Scheduler)](./hvac-climate-scheduler-no-more-automations/)
