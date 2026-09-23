@@ -37,6 +37,13 @@ The important design distinction is between **demand** and **permission**:
 - [SONOFF Hydro ONE single-channel Zigbee smart water valve](https://sonoff.tech/en-eu/products/sonoff-hydro-series-hydro-one-zigbee-smart-water-valve-swv-zfu-swv-zfe?ref=601&utm_source=affiliate) (*) — production valve used by the final system
 - [SONOFF Hydro DUO dual-channel Zigbee smart water valve](https://sonoff.tech/en-eu/products/sonoff-hydro-duo-dual-channel-zigbee-smart-water-valve-swv-zf2e-swv-zf2u?ref=601&utm_source=affiliate) (*) — tested during the earlier two-zone prototype phase
 
+### Optional Water-Level and Weather Sensors
+
+- [Water Level Sensor (Amazon.de)](https://link.amazon/B0iSax5F1) (*)
+- [Water Level Sensor (AliExpress)](https://s.click.aliexpress.com/e/_c3mJKPzF) (*)
+- [Zigbee Rain Sensor](https://s.click.aliexpress.com/e/_c3Jc7uiZ) (*)
+- [Shelly Ecowitt WS90 7-in-1 Weather Station](https://www.shelly.com/products/ecowitt-ws90-7-in-1-weather-station)
+
 Links marked with (*) are affiliate links. I may earn a small commission if you buy through them, at no extra cost to you.
 
 ## Files
