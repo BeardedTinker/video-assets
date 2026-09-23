@@ -17,6 +17,8 @@ cards:
         name: Zone Dry
       - entity: binary_sensor.smart_irrigation_hard_safety_ready
         name: Hard Safety Ready
+      - entity: input_boolean.smart_irrigation_cleanup_pending
+        name: Cleanup Pending
       - entity: binary_sensor.smart_irrigation_allowed
         name: Irrigation Allowed
       - entity: input_number.smart_irrigation_run_minutes

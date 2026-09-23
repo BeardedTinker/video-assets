@@ -8,6 +8,10 @@ input_boolean:
     initial: false
     icon: mdi:sprinkler
 
+  smart_irrigation_cleanup_pending:
+    name: Smart Irrigation Cleanup Pending
+    icon: mdi:progress-alert
+
   smart_irrigation_zone_dry_latch:
     name: Smart Irrigation Zone Dry Latch
     initial: false
@@ -140,7 +144,10 @@ template:
         unique_id: smart_irrigation_status
         icon: mdi:sprinkler-variant
         state: >-
-          {{ 'stopping' if is_state('script.smart_irrigation_stop', 'on')
+          {{ 'stopping' if (
+                is_state('script.smart_irrigation_stop', 'on')
+                or is_state('input_boolean.smart_irrigation_cleanup_pending', 'on')
+              )
               else 'running' if (
                 is_state('input_boolean.smart_irrigation_request', 'on')
                 and is_state('switch.irrigation_valve', 'on')
@@ -152,6 +159,7 @@ template:
         attributes:
           block_reason: >-
             {{ 'Not commissioned' if not is_state('input_boolean.smart_irrigation_commissioned', 'on')
+                else 'Shutdown cleanup pending' if is_state('input_boolean.smart_irrigation_cleanup_pending', 'on')
                 else 'Rain tank pump not allowed' if not is_state('binary_sensor.rain_tank_pump_allowed', 'on')
                 else 'Tank level unavailable' if not has_value('sensor.rain_tank_fill_percentage')
                 else 'Tank level too low' if states('sensor.rain_tank_fill_percentage') | float(0)
@@ -179,6 +187,7 @@ template:
         icon: mdi:shield-check
         state: >-
           {{ is_state('input_boolean.smart_irrigation_commissioned', 'on')
+              and is_state('input_boolean.smart_irrigation_cleanup_pending', 'off')
               and is_state('binary_sensor.rain_tank_pump_allowed', 'on')
               and has_value('sensor.rain_tank_fill_percentage')
               and states('sensor.rain_tank_fill_percentage') | float(0)
@@ -296,6 +305,9 @@ script:
         selector:
           boolean:
     sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.smart_irrigation_cleanup_pending
       - if:
           - condition: template
             value_template: "{{ cancel_run | default(true) | bool }}"
@@ -327,6 +339,30 @@ script:
           - wait_template: "{{ is_state('switch.irrigation_valve', 'off') }}"
             timeout: "00:00:10"
             continue_on_timeout: true
+      - if:
+          - condition: state
+            entity_id: switch.water_pump
+            state: "off"
+          - condition: state
+            entity_id: switch.irrigation_valve
+            state: "off"
+        then:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.smart_irrigation_cleanup_pending
+          - action: persistent_notification.dismiss
+            continue_on_error: true
+            data:
+              notification_id: smart_irrigation_shutdown_failed
+        else:
+          - action: persistent_notification.create
+            data:
+              notification_id: smart_irrigation_shutdown_failed
+              title: "Smart Irrigation Shutdown Failed"
+              message: >-
+                Automatic shutdown could not confirm that both the water pump
+                and irrigation valve are off. Cleanup remains active and will
+                retry every minute. Inspect the system locally.
 
 automation:
   - id: smart_irrigation_update_dry_latch
@@ -395,15 +431,24 @@ automation:
           {{ (trigger.id in ['startup', 'decommissioned'] and (
                 is_state('input_boolean.smart_irrigation_request', 'on')
                 or is_state('switch.irrigation_valve', 'on')
+                or is_state('input_boolean.smart_irrigation_cleanup_pending', 'on')
               ))
-              or (trigger.id in ['safety_blocked', 'active_device_stopped']
+              or (trigger.id == 'safety_blocked'
+                and is_state('input_boolean.smart_irrigation_request', 'on')
+                and is_state('input_boolean.smart_irrigation_cleanup_pending', 'off'))
+              or (trigger.id == 'active_device_stopped'
                 and is_state('input_boolean.smart_irrigation_request', 'on'))
               or (trigger.id == 'watchdog'
-                and is_state('input_boolean.smart_irrigation_request', 'on')
                 and (
-                  as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) == 0
-                  or as_timestamp(now())
-                    - as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) > 32 * 60
+                  is_state('input_boolean.smart_irrigation_cleanup_pending', 'on')
+                  or (
+                    is_state('input_boolean.smart_irrigation_request', 'on')
+                    and (
+                      as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) == 0
+                      or as_timestamp(now())
+                        - as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) > 32 * 60
+                    )
+                  )
                 )) }}
     actions:
       - action: script.smart_irrigation_stop

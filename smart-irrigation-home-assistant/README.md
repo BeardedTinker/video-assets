@@ -56,6 +56,11 @@ The package deliberately does not include an automatic watering schedule. It
 calculates whether irrigation is allowed and provides bounded Run and Stop
 scripts, but leaves automatic demand scheduling as an explicit user decision.
 
+Shutdown cleanup is persistent and fail-safe. The package keeps the irrigation
+valve open until the pump is confirmed off, retries an incomplete shutdown every
+minute, blocks new runs while cleanup is pending, and raises a persistent Home
+Assistant notification when local inspection is required.
+
 ## Entity Mapping
 
 Entities provided by the [Rain Tank Water Management](../rain-tank-water-management/) project:
