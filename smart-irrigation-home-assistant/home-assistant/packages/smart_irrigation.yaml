@@ -1,0 +1,412 @@
+input_boolean:
+  smart_irrigation_commissioned:
+    name: Smart Irrigation Commissioned
+    icon: mdi:pipe-valve
+
+  smart_irrigation_request:
+    name: Smart Irrigation Request
+    initial: false
+    icon: mdi:sprinkler
+
+  smart_irrigation_zone_dry_latch:
+    name: Smart Irrigation Zone Dry Latch
+    initial: false
+    icon: mdi:water-alert
+
+input_number:
+  smart_irrigation_run_minutes:
+    name: Smart Irrigation Run Minutes
+    initial: 10
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-outline
+
+  smart_irrigation_dry_threshold:
+    name: Smart Irrigation Dry Threshold
+    initial: 25
+    min: 5
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+    icon: mdi:water-minus
+
+  smart_irrigation_wet_threshold:
+    name: Smart Irrigation Wet Threshold
+    initial: 35
+    min: 10
+    max: 80
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+    icon: mdi:water-plus
+
+  smart_irrigation_min_tank_level:
+    name: Smart Irrigation Minimum Tank Level
+    initial: 40
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: "%"
+    icon: mdi:storage-tank
+
+input_datetime:
+  smart_irrigation_last_run:
+    name: Smart Irrigation Last Run
+    has_date: true
+    has_time: true
+    icon: mdi:history
+
+template:
+  - sensor:
+      - name: Smart Irrigation Soil Moisture
+        unique_id: smart_irrigation_soil_moisture
+        unit_of_measurement: "%"
+        state_class: measurement
+        device_class: moisture
+        icon: mdi:water-percent
+        availability: >-
+          {% set sensors = [
+            'sensor.irrigation_soil_moisture_1',
+            'sensor.irrigation_soil_moisture_2',
+            'sensor.irrigation_soil_moisture_3',
+            'sensor.irrigation_soil_moisture_4'
+          ] %}
+          {% set ns = namespace(valid=0) %}
+          {% for entity in sensors %}
+            {% if states(entity) | float(none) is not none %}
+              {% set ns.valid = ns.valid + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.valid >= 3 }}
+        state: >-
+          {% set sensors = [
+            'sensor.irrigation_soil_moisture_1',
+            'sensor.irrigation_soil_moisture_2',
+            'sensor.irrigation_soil_moisture_3',
+            'sensor.irrigation_soil_moisture_4'
+          ] %}
+          {% set ns = namespace(values=[]) %}
+          {% for entity in sensors %}
+            {% set value = states(entity) | float(none) %}
+            {% if value is not none %}
+              {% set ns.values = ns.values + [value] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.values | median | round(1) }}
+
+      - name: Smart Irrigation Sensor Health
+        unique_id: smart_irrigation_sensor_health
+        icon: mdi:leaf-circle-outline
+        state: >-
+          {% set sensors = [
+            'sensor.irrigation_soil_moisture_1',
+            'sensor.irrigation_soil_moisture_2',
+            'sensor.irrigation_soil_moisture_3',
+            'sensor.irrigation_soil_moisture_4'
+          ] %}
+          {% set ns = namespace(valid=0) %}
+          {% for entity in sensors %}
+            {% if states(entity) | float(none) is not none %}
+              {% set ns.valid = ns.valid + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ 'healthy' if ns.valid == 4
+              else 'degraded' if ns.valid == 3
+              else 'insufficient' if ns.valid > 0
+              else 'unavailable' }}
+        attributes:
+          valid_count: >-
+            {% set sensors = [
+              'sensor.irrigation_soil_moisture_1',
+              'sensor.irrigation_soil_moisture_2',
+              'sensor.irrigation_soil_moisture_3',
+              'sensor.irrigation_soil_moisture_4'
+            ] %}
+            {% set ns = namespace(valid=0) %}
+            {% for entity in sensors %}
+              {% if states(entity) | float(none) is not none %}
+                {% set ns.valid = ns.valid + 1 %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.valid }}
+          total_count: 4
+
+      - name: Smart Irrigation Status
+        unique_id: smart_irrigation_status
+        icon: mdi:sprinkler-variant
+        state: >-
+          {{ 'stopping' if is_state('script.smart_irrigation_stop', 'on')
+              else 'running' if (
+                is_state('input_boolean.smart_irrigation_request', 'on')
+                and is_state('switch.irrigation_valve', 'on')
+                and is_state('switch.water_pump', 'on')
+              )
+              else 'starting' if is_state('script.smart_irrigation_run', 'on')
+              else 'blocked' if not is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              else 'ready' }}
+        attributes:
+          block_reason: >-
+            {{ 'Not commissioned' if not is_state('input_boolean.smart_irrigation_commissioned', 'on')
+                else 'Rain tank pump not allowed' if not is_state('binary_sensor.rain_tank_pump_allowed', 'on')
+                else 'Tank level unavailable' if not has_value('sensor.rain_tank_fill_percentage')
+                else 'Tank level too low' if states('sensor.rain_tank_fill_percentage') | float(0)
+                  <= states('input_number.smart_irrigation_min_tank_level') | float(40)
+                else 'Irrigation valve unavailable' if not has_value('switch.irrigation_valve')
+                else 'Water pump unavailable' if not has_value('switch.water_pump')
+                else 'Valve safety sensor unavailable' if (
+                  not has_value('binary_sensor.irrigation_valve_water_leak')
+                  or not has_value('binary_sensor.irrigation_valve_water_depletion')
+                )
+                else 'Valve leak detected' if is_state('binary_sensor.irrigation_valve_water_leak', 'on')
+                else 'Valve reports no water' if is_state('binary_sensor.irrigation_valve_water_depletion', 'on')
+                  and not is_state('input_boolean.smart_irrigation_request', 'on')
+                else 'none' }}
+
+  - binary_sensor:
+      - name: Smart Irrigation Zone Dry
+        unique_id: smart_irrigation_zone_dry
+        icon: >-
+          {{ 'mdi:water-alert' if is_state(this.entity_id, 'on') else 'mdi:water-check' }}
+        state: "{{ is_state('input_boolean.smart_irrigation_zone_dry_latch', 'on') }}"
+
+      - name: Smart Irrigation Hard Safety Ready
+        unique_id: smart_irrigation_hard_safety_ready
+        icon: mdi:shield-check
+        state: >-
+          {{ is_state('input_boolean.smart_irrigation_commissioned', 'on')
+              and is_state('binary_sensor.rain_tank_pump_allowed', 'on')
+              and has_value('sensor.rain_tank_fill_percentage')
+              and states('sensor.rain_tank_fill_percentage') | float(0)
+                > states('input_number.smart_irrigation_min_tank_level') | float(40)
+              and has_value('switch.irrigation_valve')
+              and has_value('switch.water_pump')
+              and has_value('binary_sensor.irrigation_valve_water_leak')
+              and has_value('binary_sensor.irrigation_valve_water_depletion')
+              and is_state('binary_sensor.irrigation_valve_water_leak', 'off')
+              and (
+                is_state('binary_sensor.irrigation_valve_water_depletion', 'off')
+                or is_state('input_boolean.smart_irrigation_request', 'on')
+              ) }}
+
+      - name: Smart Irrigation Allowed
+        unique_id: smart_irrigation_allowed
+        icon: >-
+          {{ 'mdi:sprinkler' if is_state(this.entity_id, 'on') else 'mdi:sprinkler-off' }}
+        state: >-
+          {{ is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              and is_state('binary_sensor.smart_irrigation_zone_dry', 'on')
+              and has_value('sensor.smart_irrigation_soil_moisture') }}
+
+script:
+  smart_irrigation_run:
+    alias: Smart Irrigation - Run
+    description: Runs one bounded irrigation cycle after hard safety checks pass.
+    icon: mdi:play-circle-outline
+    mode: single
+    max_exceeded: silent
+    sequence:
+      - condition: template
+        value_template: >-
+          {{ is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              and is_state('input_boolean.smart_irrigation_request', 'off')
+              and is_state('switch.irrigation_valve', 'off')
+              and is_state('switch.water_pump', 'off') }}
+      - variables:
+          run_minutes: >-
+            {{ [[states('input_number.smart_irrigation_run_minutes') | int(10), 1] | max, 30] | min }}
+      - action: switch.turn_on
+        continue_on_error: true
+        target:
+          entity_id: switch.irrigation_valve
+      - wait_template: >-
+          {{ is_state('switch.irrigation_valve', 'on')
+              or not is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on') }}
+        timeout: "00:00:10"
+        continue_on_timeout: true
+      - if:
+          - condition: template
+            value_template: >-
+              {{ not is_state('switch.irrigation_valve', 'on')
+                  or not is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on') }}
+        then:
+          - action: script.smart_irrigation_stop
+            data:
+              cancel_run: false
+          - stop: "Irrigation valve failed to open safely"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.smart_irrigation_request
+      - action: switch.turn_on
+        continue_on_error: true
+        target:
+          entity_id: switch.water_pump
+      - wait_template: >-
+          {{ is_state('switch.water_pump', 'on')
+              or not is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              or not is_state('input_boolean.smart_irrigation_request', 'on')
+              or not is_state('switch.irrigation_valve', 'on') }}
+        timeout: "00:00:15"
+        continue_on_timeout: true
+      - if:
+          - condition: template
+            value_template: >-
+              {{ not (
+                is_state('switch.water_pump', 'on')
+                and is_state('switch.irrigation_valve', 'on')
+                and is_state('input_boolean.smart_irrigation_request', 'on')
+                and is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              ) }}
+        then:
+          - action: script.smart_irrigation_stop
+            data:
+              cancel_run: false
+          - stop: "Water pump failed to start safely"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.smart_irrigation_last_run
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - wait_template: >-
+          {{ not is_state('binary_sensor.smart_irrigation_hard_safety_ready', 'on')
+              or not is_state('input_boolean.smart_irrigation_request', 'on')
+              or not is_state('switch.irrigation_valve', 'on')
+              or not is_state('switch.water_pump', 'on') }}
+        timeout:
+          minutes: "{{ run_minutes }}"
+        continue_on_timeout: true
+      - action: script.smart_irrigation_stop
+        data:
+          cancel_run: false
+
+  smart_irrigation_stop:
+    alias: Smart Irrigation - Stop
+    description: Stops the pump before closing the irrigation valve.
+    icon: mdi:stop-circle-outline
+    mode: restart
+    fields:
+      cancel_run:
+        name: Cancel active run
+        description: Cancel the active irrigation run before cleanup.
+        default: true
+        selector:
+          boolean:
+    sequence:
+      - if:
+          - condition: template
+            value_template: "{{ cancel_run | default(true) | bool }}"
+        then:
+          - action: script.turn_off
+            continue_on_error: true
+            target:
+              entity_id: script.smart_irrigation_run
+      - action: input_boolean.turn_off
+        continue_on_error: true
+        target:
+          entity_id: input_boolean.smart_irrigation_request
+      - action: switch.turn_off
+        continue_on_error: true
+        target:
+          entity_id: switch.water_pump
+      - wait_template: "{{ is_state('switch.water_pump', 'off') }}"
+        timeout: "00:00:15"
+        continue_on_timeout: true
+      - if:
+          - condition: state
+            entity_id: switch.water_pump
+            state: "off"
+        then:
+          - action: switch.turn_off
+            continue_on_error: true
+            target:
+              entity_id: switch.irrigation_valve
+          - wait_template: "{{ is_state('switch.irrigation_valve', 'off') }}"
+            timeout: "00:00:10"
+            continue_on_timeout: true
+
+automation:
+  - id: smart_irrigation_update_dry_latch
+    alias: Smart Irrigation - Update Dry Latch
+    description: Applies dry and wet thresholds without starting irrigation.
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id: sensor.smart_irrigation_soil_moisture
+      - trigger: time_pattern
+        minutes: "/10"
+    conditions:
+      - condition: template
+        value_template: "{{ has_value('sensor.smart_irrigation_soil_moisture') }}"
+    actions:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ states('sensor.smart_irrigation_soil_moisture') | float(100)
+                      < states('input_number.smart_irrigation_dry_threshold') | float(25) }}
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.smart_irrigation_zone_dry_latch
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ states('sensor.smart_irrigation_soil_moisture') | float(0)
+                      >= states('input_number.smart_irrigation_wet_threshold') | float(35) }}
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.smart_irrigation_zone_dry_latch
+    mode: restart
+
+  - id: smart_irrigation_safety_cleanup
+    alias: Smart Irrigation - Safety Cleanup
+    description: Stops an active irrigation request when safety or runtime checks fail.
+    initial_state: true
+    triggers:
+      - trigger: homeassistant
+        event: start
+        id: startup
+      - trigger: state
+        entity_id: input_boolean.smart_irrigation_commissioned
+        to: "off"
+        id: decommissioned
+      - trigger: state
+        entity_id: binary_sensor.smart_irrigation_hard_safety_ready
+        to: "off"
+        id: safety_blocked
+      - trigger: state
+        entity_id:
+          - switch.irrigation_valve
+          - switch.water_pump
+        to: "off"
+        id: active_device_stopped
+      - trigger: time_pattern
+        minutes: "/1"
+        id: watchdog
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ (trigger.id in ['startup', 'decommissioned'] and (
+                is_state('input_boolean.smart_irrigation_request', 'on')
+                or is_state('switch.irrigation_valve', 'on')
+              ))
+              or (trigger.id in ['safety_blocked', 'active_device_stopped']
+                and is_state('input_boolean.smart_irrigation_request', 'on'))
+              or (trigger.id == 'watchdog'
+                and is_state('input_boolean.smart_irrigation_request', 'on')
+                and (
+                  as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) == 0
+                  or as_timestamp(now())
+                    - as_timestamp(states('input_datetime.smart_irrigation_last_run'), 0) > 32 * 60
+                )) }}
+    actions:
+      - action: script.smart_irrigation_stop
+        data:
+          cancel_run: true
+    mode: restart

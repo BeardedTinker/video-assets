@@ -1,0 +1,57 @@
+# Standard Home Assistant cards for the Smart Irrigation package.
+# Replace example hardware entity IDs before use.
+
+type: vertical-stack
+cards:
+  - type: entities
+    title: Smart Irrigation
+    show_header_toggle: false
+    entities:
+      - entity: sensor.smart_irrigation_status
+        name: Status
+      - entity: sensor.smart_irrigation_soil_moisture
+        name: Soil Moisture Median
+      - entity: sensor.smart_irrigation_sensor_health
+        name: Sensor Health
+      - entity: binary_sensor.smart_irrigation_zone_dry
+        name: Zone Dry
+      - entity: binary_sensor.smart_irrigation_hard_safety_ready
+        name: Hard Safety Ready
+      - entity: binary_sensor.smart_irrigation_allowed
+        name: Irrigation Allowed
+      - entity: input_number.smart_irrigation_run_minutes
+        name: Run Minutes
+      - entity: input_datetime.smart_irrigation_last_run
+        name: Last Run
+
+  - type: horizontal-stack
+    cards:
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.smart_irrigation_hard_safety_ready
+            state: "on"
+        card:
+          type: button
+          name: Run
+          icon: mdi:play
+          tap_action:
+            action: perform-action
+            perform_action: script.smart_irrigation_run
+      - type: button
+        name: Stop
+        icon: mdi:stop
+        tap_action:
+          action: perform-action
+          perform_action: script.smart_irrigation_stop
+
+  - type: history-graph
+    title: Irrigation Activity
+    hours_to_show: 24
+    entities:
+      - entity: sensor.smart_irrigation_soil_moisture
+        name: Soil Moisture
+      - entity: switch.irrigation_valve
+        name: Hydro ONE Valve
+      - entity: switch.water_pump
+        name: Water Pump
