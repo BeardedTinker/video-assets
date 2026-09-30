@@ -1,0 +1,142 @@
+# Copy this view into an existing Lovelace dashboard.
+# It uses only built-in Home Assistant cards.
+title: "SIEM"
+path: siem
+icon: mdi:shield-account-outline
+type: sections
+max_columns: 4
+badges:
+  - type: entity
+    entity: sensor.wazuh_critical_24h
+    show_name: false
+    show_state: true
+    show_icon: true
+  - type: entity
+    entity: sensor.siem_security_score
+    show_name: false
+    show_state: true
+    show_icon: true
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: "Security posture"
+        icon: mdi:shield-half-full
+      - type: tile
+        entity: sensor.siem_security_score
+        name: "Security score"
+      - type: tile
+        entity: sensor.wazuh_indexer_last_successful_poll
+        name: "Last successful Indexer poll"
+      - type: tile
+        entity: sensor.wazuh_critical_24h
+        name: "Critical (24h)"
+      - type: tile
+        entity: sensor.wazuh_high_24h
+        name: "High (24h)"
+      - type: tile
+        entity: sensor.wazuh_medium_24h
+        name: "Medium (24h)"
+      - type: tile
+        entity: sensor.wazuh_low_24h
+        name: "Low (24h)"
+      - type: tile
+        entity: sensor.wazuh_top_rule_24h
+        name: "Top elevated rule"
+
+  - type: grid
+    cards:
+      - type: heading
+        heading: "Recent security activity"
+        icon: mdi:shield-search
+      - type: markdown
+        content: >-
+          {% set feed_state = states('sensor.wazuh_security_last_5') %}
+          {% set hits = state_attr('sensor.wazuh_security_last_5', 'hits') | default([], true) %}
+          ### Latest high-severity events
+
+          {% if feed_state in ['unknown', 'unavailable'] %}
+          **Data unavailable.** The Wazuh security query did not return a valid response.
+          {% elif hits | length > 0 %}
+          {% for hit in hits %}
+          {% set event = hit.get('_source', {}) %}
+          {% set rule = event.get('rule', {}) %}
+          {% set agent = event.get('agent', {}) %}
+          {% set decoder = event.get('decoder', {}) %}
+          {% set timestamp = event.get('@timestamp') %}
+          **Event:** {{ rule.get('description', 'Unknown event') }}<br>
+          **Triggered:** Rule {{ rule.get('id', 'n/a') }} · Level {{ rule.get('level', 'n/a') }}<br>
+          **Source:** {{ agent.get('name', 'unknown') }} · {{ decoder.get('name', 'unknown') }} · `{{ event.get('location', 'n/a') }}`<br>
+          *{{ as_local(as_datetime(timestamp)).strftime('%d %b %Y %H:%M') if timestamp else 'Unknown time' }}*
+
+          {% if not loop.last %}---{% endif %}
+          {% endfor %}
+          {% else %}
+          No matching high-severity events in the last 24 hours.
+          {% endif %}
+
+  - type: grid
+    cards:
+      - type: heading
+        heading: "SafeLine WAF"
+        icon: mdi:shield-lock-outline
+      - type: tile
+        entity: sensor.wazuh_safeline_alerts_24h
+        name: "Total alerts"
+      - type: tile
+        entity: sensor.wazuh_safeline_blocked_attacks_24h
+        name: "Blocked"
+      - type: tile
+        entity: sensor.wazuh_safeline_sqli_24h
+        name: "SQL injection"
+      - type: tile
+        entity: sensor.wazuh_safeline_xss_24h
+        name: "XSS"
+      - type: tile
+        entity: sensor.wazuh_safeline_repeated_attacks_24h
+        name: "Repeated attacks"
+      - type: tile
+        entity: sensor.wazuh_safeline_multi_vector_24h
+        name: "Multi-vector attacks"
+      - type: tile
+        entity: sensor.wazuh_safeline_top_source_ip_24h
+        name: "Top source"
+      - type: markdown
+        content: >-
+          {% set entity_id = 'sensor.wazuh_safeline_last_attack' %}
+          {% set response = state_attr(entity_id, 'hits') | default({}, true) %}
+          {% set hits = response.get('hits', []) %}
+          {% set source = hits[0].get('_source', {}) if hits | length > 0 else {} %}
+          {% set data = source.get('data', {}) %}
+          {% set rule = source.get('rule', {}) %}
+          {% set timestamp = source.get('@timestamp') %}
+          ### Last SafeLine attack
+
+          {% if states(entity_id) in ['unknown', 'unavailable'] %}
+          **Data unavailable.** The SafeLine query did not return a valid response.
+          {% elif hits | length == 0 %}
+          No SafeLine attack is available for the last 24 hours.
+          {% else %}
+          - **Time:** {{ as_local(as_datetime(timestamp)).strftime('%d %b %Y %H:%M:%S') if timestamp else 'n/a' }}
+          - **Source IP:** `{{ data.get('srcip', 'n/a') }}`
+          - **Attack type:** {{ data.get('attack_type_name', data.get('attack_type', 'n/a')) }}
+          - **Action:** {{ data.get('action_name', data.get('action', 'n/a')) }}
+          - **Host:** `{{ data.get('host', 'n/a') }}`
+          - **Path:** `{{ data.get('path_only', 'n/a') }}`
+          - **Final rule:** {{ rule.get('description', 'n/a') }} ({{ rule.get('id', 'n/a') }})
+          {% endif %}
+
+  - type: grid
+    cards:
+      - type: heading
+        heading: "WAN_LOCAL activity"
+        icon: mdi:lan-check
+      - type: tile
+        entity: sensor.wazuh_wan_local_drops_24h
+        name: "Matching events (24h)"
+      - type: tile
+        entity: sensor.wazuh_top_wan_local_source_ip_24h
+        name: "Top source"
+      - type: tile
+        entity: sensor.wazuh_top_wan_local_dpt_24h
+        name: "Top destination port"
