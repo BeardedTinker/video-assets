@@ -1,0 +1,297 @@
+# Wazuh Indexer data for the Home Assistant SIEM dashboard.
+# Four shared REST resources provide all entities below.
+# Replace wazuh.example.internal with your trusted Wazuh proxy hostname.
+
+rest:
+  - resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    method: POST
+    authentication: basic
+    verify_ssl: true
+    username: !secret wazuh_proxy_user
+    password: !secret wazuh_proxy_pass
+    headers:
+      Content-Type: application/json
+    scan_interval: 300
+    payload: >-
+      {
+        "size": 0,
+        "track_total_hits": true,
+        "query": {
+          "range": {
+            "@timestamp": {"gte": "now-24h", "lt": "now"}
+          }
+        },
+        "aggs": {
+          "critical": {"filter": {"range": {"rule.level": {"gte": 15}}}},
+          "high": {"filter": {"range": {"rule.level": {"gte": 12, "lte": 14}}}},
+          "medium": {"filter": {"range": {"rule.level": {"gte": 7, "lte": 11}}}},
+          "low": {"filter": {"range": {"rule.level": {"lte": 6}}}},
+          "top_elevated_rule": {
+            "filter": {"range": {"rule.level": {"gte": 7}}},
+            "aggs": {
+              "rules": {
+                "terms": {"field": "rule.id.keyword", "size": 1},
+                "aggs": {
+                  "sample": {
+                    "top_hits": {
+                      "size": 1,
+                      "_source": ["rule.id", "rule.description"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    sensor:
+      - name: "Wazuh Critical 24h"
+        unique_id: wazuh_critical_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('critical', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('critical', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh High 24h"
+        unique_id: wazuh_high_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('high', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('high', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh Medium 24h"
+        unique_id: wazuh_medium_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('medium', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('medium', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh Low 24h"
+        unique_id: wazuh_low_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('low', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('low', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh Top Rule 24h"
+        unique_id: wazuh_top_rule_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('top_elevated_rule', {}).get('rules', {}).get('buckets') is not none }}
+        value_template: >-
+          {% set buckets = (value_json | default({}, true)).get('aggregations', {}).get('top_elevated_rule', {}).get('rules', {}).get('buckets', []) %}
+          {% if buckets | length > 0 %}
+            {% set bucket = buckets[0] %}
+            {% set source = bucket.sample.hits.hits[0]._source %}
+            {{ source.rule.description }} (ID {{ source.rule.id }}, {{ bucket.doc_count }}x)
+          {% else %}
+            n/a
+          {% endif %}
+      - name: "Wazuh Indexer Last Successful Poll"
+        unique_id: wazuh_indexer_last_successful_poll
+        device_class: timestamp
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations') is not none }}
+        value_template: "{{ now().isoformat() }}"
+
+  - resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    method: POST
+    authentication: basic
+    verify_ssl: true
+    username: !secret wazuh_proxy_user
+    password: !secret wazuh_proxy_pass
+    headers:
+      Content-Type: application/json
+    scan_interval: 120
+    payload: >-
+      {
+        "size": 5,
+        "track_total_hits": true,
+        "sort": [{"@timestamp": {"order": "desc"}}],
+        "_source": [
+          "@timestamp", "rule.id", "rule.level", "rule.description",
+          "agent.name", "decoder.name", "location"
+        ],
+        "query": {
+          "bool": {
+            "filter": [
+              {"range": {"@timestamp": {"gte": "now-24h", "lt": "now"}}},
+              {"range": {"rule.level": {"gte": 10}}}
+            ]
+          }
+        }
+      }
+    sensor:
+      - name: "Wazuh Security Last 5"
+        unique_id: wazuh_security_last_5
+        availability: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('hits') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('hits', []) | length }}
+        json_attributes_path: "$.hits"
+        json_attributes:
+          - hits
+
+  - resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    method: POST
+    authentication: basic
+    verify_ssl: true
+    username: !secret wazuh_proxy_user
+    password: !secret wazuh_proxy_pass
+    headers:
+      Content-Type: application/json
+    scan_interval: 300
+    payload: >-
+      {
+        "size": 0,
+        "track_total_hits": true,
+        "query": {
+          "bool": {
+            "filter": [
+              {"range": {"@timestamp": {"gte": "now-24h", "lt": "now"}}},
+              {"term": {"decoder.name.keyword": "unifi-wan-local"}}
+            ]
+          }
+        },
+        "aggs": {
+          "top_srcip": {"terms": {"field": "data.srcip.keyword", "size": 1}},
+          "top_dstport": {"terms": {"field": "data.dstport.keyword", "size": 1}}
+        }
+      }
+    sensor:
+      - name: "Wazuh WAN_LOCAL Drops 24h"
+        unique_id: wazuh_wan_local_drops_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('total', {}).get('value') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('total', {}).get('value', 0) | int(0) }}
+      - name: "Wazuh Top WAN_LOCAL Source IP 24h"
+        unique_id: wazuh_top_wan_local_srcip_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('top_srcip', {}).get('buckets') is not none }}
+        value_template: >-
+          {% set buckets = (value_json | default({}, true)).get('aggregations', {}).get('top_srcip', {}).get('buckets', []) %}
+          {% if buckets | length > 0 %}
+            {{ buckets[0].key }} ({{ buckets[0].doc_count }}x)
+          {% else %}
+            n/a
+          {% endif %}
+      - name: "Wazuh Top WAN_LOCAL DPT 24h"
+        unique_id: wazuh_top_wan_local_dpt_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('top_dstport', {}).get('buckets') is not none }}
+        value_template: >-
+          {% set buckets = (value_json | default({}, true)).get('aggregations', {}).get('top_dstport', {}).get('buckets', []) %}
+          {% if buckets | length > 0 %}
+            Port {{ buckets[0].key }} ({{ buckets[0].doc_count }}x)
+          {% else %}
+            n/a
+          {% endif %}
+
+  - resource: "https://wazuh.example.internal:8443/wazuh-alerts-*/_search"
+    method: POST
+    authentication: basic
+    verify_ssl: true
+    username: !secret wazuh_proxy_user
+    password: !secret wazuh_proxy_pass
+    headers:
+      Content-Type: application/json
+    scan_interval: 120
+    payload: >-
+      {
+        "size": 1,
+        "track_total_hits": true,
+        "sort": [{"@timestamp": {"order": "desc"}}],
+        "_source": [
+          "@timestamp", "rule.id", "rule.level", "rule.description",
+          "data.event_id", "data.srcip", "data.action", "data.action_name",
+          "data.attack_type", "data.attack_type_name", "data.module",
+          "data.rule_id", "data.host", "data.path_only"
+        ],
+        "query": {
+          "bool": {
+            "filter": [
+              {"range": {"@timestamp": {"gte": "now-24h", "lt": "now"}}},
+              {"term": {"rule.groups.keyword": "safeline_waf_event"}}
+            ]
+          }
+        },
+        "aggs": {
+          "blocked": {"filter": {"term": {"data.action.keyword": "1"}}},
+          "sqli": {"filter": {"term": {"data.attack_type.keyword": "0"}}},
+          "xss": {"filter": {"term": {"data.attack_type.keyword": "1"}}},
+          "repeated": {"filter": {"term": {"rule.id.keyword": "100550"}}},
+          "multi_vector": {"filter": {"term": {"rule.id.keyword": "100551"}}},
+          "top_srcip": {"terms": {"field": "data.srcip.keyword", "size": 1}}
+        }
+      }
+    sensor:
+      - name: "Wazuh SafeLine Alerts 24h"
+        unique_id: wazuh_safeline_alerts_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('total', {}).get('value') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('total', {}).get('value', 0) | int(0) }}
+      - name: "Wazuh SafeLine Blocked Attacks 24h"
+        unique_id: wazuh_safeline_blocked_attacks_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('blocked', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('blocked', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh SafeLine SQLi 24h"
+        unique_id: wazuh_safeline_sqli_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('sqli', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('sqli', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh SafeLine XSS 24h"
+        unique_id: wazuh_safeline_xss_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('xss', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('xss', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh SafeLine Repeated Attacks 24h"
+        unique_id: wazuh_safeline_repeated_attacks_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('repeated', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('repeated', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh SafeLine Multi-vector 24h"
+        unique_id: wazuh_safeline_multi_vector_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('multi_vector', {}).get('doc_count') is not none }}
+        value_template: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('multi_vector', {}).get('doc_count', 0) | int(0) }}
+      - name: "Wazuh SafeLine Top Source IP 24h"
+        unique_id: wazuh_safeline_top_source_ip_24h
+        availability: >-
+          {{ (value_json | default({}, true)).get('aggregations', {}).get('top_srcip', {}).get('buckets') is not none }}
+        value_template: >-
+          {% set buckets = (value_json | default({}, true)).get('aggregations', {}).get('top_srcip', {}).get('buckets', []) %}
+          {% if buckets | length > 0 %}
+            {{ buckets[0].key }} ({{ buckets[0].doc_count }}x)
+          {% else %}
+            n/a
+          {% endif %}
+      - name: "Wazuh SafeLine Last Attack"
+        unique_id: wazuh_safeline_last_attack
+        availability: >-
+          {{ (value_json | default({}, true)).get('hits', {}).get('hits') is not none }}
+        value_template: >-
+          {% set hits = (value_json | default({}, true)).get('hits', {}).get('hits', []) %}
+          {{ hits[0]._source['@timestamp'] if hits | length > 0 else 'n/a' }}
+        json_attributes:
+          - hits
+
+template:
+  - sensor:
+      - name: "SIEM Security Score"
+        unique_id: siem_security_score
+        unit_of_measurement: "%"
+        availability: >-
+          {{ has_value('sensor.wazuh_critical_24h')
+             and has_value('sensor.wazuh_high_24h')
+             and has_value('sensor.wazuh_medium_24h') }}
+        state: >-
+          {% set critical = states('sensor.wazuh_critical_24h') | int(0) %}
+          {% set high = states('sensor.wazuh_high_24h') | int(0) %}
+          {% set medium = states('sensor.wazuh_medium_24h') | int(0) %}
+          {% set penalty = 40 if critical > 0 else 0 %}
+          {% set penalty = penalty + (20 if high > 2500 else 10 if high > 1500 else 0) %}
+          {% set penalty = penalty + (10 if medium > 20 else 5 if medium > 10 else 0) %}
+          {{ 100 - penalty }}
