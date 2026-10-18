@@ -23,6 +23,10 @@ jobs:
                 -w /workdir \
                 mikefarah/yq:4.47.2 eval '.' >/dev/null
 
+      - name: Validate Home Assistant semantics
+        shell: bash
+        run: bash scripts/validate-home-assistant-yaml.sh
+
       - name: Validate Wazuh embedded JSON
         shell: bash
         run: bash smart-home-siem-wazuh/scripts/validate-embedded-json.sh
