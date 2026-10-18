@@ -46,6 +46,18 @@ Some projects are intentionally architecture-focused rather than plug-and-play, 
 - Entity IDs and device names may need to be adapted to your setup.
 - Safety-related automations are an **extra layer** — always rely on certified hardware and follow local regulations.
 
+## Repository validation
+
+Run these checks from the repository root before submitting changes:
+
+```bash
+git ls-files -z -- '*.yaml' '*.yml' | xargs -0 --no-run-if-empty yq eval '.' >/dev/null
+bash scripts/validate-home-assistant-yaml.sh
+bash smart-home-siem-wazuh/scripts/validate-embedded-json.sh
+```
+
+The semantic validator checks automation and package structure plus duplicate automation IDs and `unique_id` values within each video project. It intentionally treats dashboard snippets as syntax-only examples.
+
 ## 🔗 Links
 - YouTube: https://www.youtube.com/@BeardedTinker
 - GitHub: https://github.com/BeardedTinker/
