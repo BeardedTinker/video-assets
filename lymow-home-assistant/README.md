@@ -43,9 +43,10 @@ dashboard if it is not already available.
 
 ## Session duration
 
-The completion event reports `duration_s` in **seconds**. The included
-automation divides it by 60 before displaying minutes. Do not label the raw
-value as minutes.
+In Lymow HA integration version 2.1.14, `clean_time` is the active mowing
+duration in **minutes**. The event also exposes a `duration_s` attribute with
+the same raw value despite its misleading name. The included automation uses
+`clean_time` directly and does not divide it by 60.
 
 ## Privacy and safety
 

@@ -14,8 +14,8 @@
     - variables:
         area_m2: >
           {{ state_attr('event.lymow_one_plus_last_session', 'area_m2') | float(0) }}
-        duration_s: >
-          {{ state_attr('event.lymow_one_plus_last_session', 'duration_s') | float(0) }}
+        clean_time: >
+          {{ state_attr('event.lymow_one_plus_last_session', 'clean_time') | float(0) }}
         used_battery: >
           {{ state_attr('event.lymow_one_plus_last_session', 'used_battery') | float(0) }}
     - action: notify.send_message
@@ -25,7 +25,7 @@
         title: Mowing complete
         message: >
           Mowed {{ area_m2 | round(0) }} m² in
-          {{ (duration_s / 60) | round(1) }} min.
+          {{ clean_time | round(1) }} min.
           Used {{ used_battery | round(0) }}% battery.
   mode: queued
   max: 5
