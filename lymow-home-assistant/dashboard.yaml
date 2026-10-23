@@ -1,0 +1,136 @@
+# Paste this as a manual dashboard card.
+# Replace the example entity IDs with those created for your mower.
+# The map requires Map Card from HACS and template-sensors.yaml.
+type: vertical-stack
+cards:
+  - type: tile
+    entity: lawn_mower.lymow_one_plus
+    name: Lymow One Plus
+    icon: mdi:robot-mower-outline
+    color: cyan
+    state_content: state
+    features_position: inline
+    features:
+      - type: lawn-mower-commands
+        commands:
+          - start_pause
+          - dock
+
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: button.lymow_one_plus_start_mowing
+        name: Start
+        icon: mdi:play
+        tap_action:
+          action: perform-action
+          confirmation:
+            text: Confirm that the lawn is clear and conditions are safe.
+          perform_action: button.press
+          target:
+            entity_id: button.lymow_one_plus_start_mowing
+      - type: button
+        entity: button.lymow_one_plus_pause
+        name: Pause
+        icon: mdi:pause
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.lymow_one_plus_pause
+      - type: button
+        entity: button.lymow_one_plus_resume
+        name: Resume
+        icon: mdi:play-pause
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.lymow_one_plus_resume
+      - type: button
+        entity: button.lymow_one_plus_dock_cancel
+        name: Dock
+        icon: mdi:home-import-outline
+        tap_action:
+          action: perform-action
+          confirmation:
+            text: This will cancel the active task and return the mower to its dock.
+          perform_action: button.press
+          target:
+            entity_id: button.lymow_one_plus_dock_cancel
+
+  - type: custom:map-card
+    title: Lymow One Plus - Coverage & Position
+    fit_to_markers: true
+    zoom: 18
+    theme_mode: light
+    entities:
+      - entity: sensor.lymow_geojson_zones
+        geojson:
+          attribute: geojson
+          color: "#8BC34A"
+          fill_color: "#B9F6CA"
+          fill_opacity: 0.35
+          hide_marker: true
+          weight: 2
+      - entity: sensor.lymow_geojson_mowed_area
+        geojson:
+          attribute: geojson
+          color: "#1B5E20"
+          fill_color: "#2E7D32"
+          fill_opacity: 0.55
+          hide_marker: true
+          weight: 2
+      - entity: sensor.lymow_geojson_dock
+        display: marker
+        geojson:
+          attribute: geojson
+          color: "#000000"
+          fill_color: "#000000"
+          fill_opacity: 1
+          hide_marker: true
+          radius: 7
+      - entity: sensor.lymow_geojson_robot
+        display: marker
+        geojson:
+          attribute: geojson
+          color: "#E53935"
+          fill_color: "#F44336"
+          fill_opacity: 1
+          hide_marker: true
+          radius: 8
+    tile_layers:
+      - url: https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
+    tile_layer_options:
+      minZoom: 14
+      maxZoom: 24
+      maxNativeZoom: 21
+
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: tile
+        entity: sensor.lymow_one_plus_battery
+        name: Battery
+        icon: mdi:battery
+      - type: tile
+        entity: binary_sensor.lymow_one_plus_charging
+        name: Charging
+        icon: mdi:battery-charging
+      - type: tile
+        entity: sensor.lymow_one_plus_session_progress
+        name: Progress
+        icon: mdi:progress-clock
+      - type: tile
+        entity: sensor.lymow_one_plus_session_remaining
+        name: Estimated Time Left
+        icon: mdi:timer-sand
+      - type: tile
+        entity: sensor.lymow_one_plus_current_zone
+        name: Current Zone
+        icon: mdi:map-marker
+      - type: tile
+        entity: sensor.lymow_one_plus_robot_status
+        name: Status
+        icon: mdi:list-status

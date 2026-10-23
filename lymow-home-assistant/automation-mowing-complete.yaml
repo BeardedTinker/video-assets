@@ -1,0 +1,31 @@
+# Replace the mower event and notify entity IDs before use.
+- id: lymow_mowing_complete_notification
+  alias: Lymow - Mowing complete notification
+  description: Send statistics when the Lymow integration records a completed session.
+  triggers:
+    - trigger: state
+      entity_id: event.lymow_one_plus_last_session
+  conditions:
+    - condition: template
+      value_template: >
+        {{ trigger.to_state is not none
+           and trigger.to_state.attributes.get('event_type') == 'lymow_session_completed' }}
+  actions:
+    - variables:
+        area_m2: >
+          {{ state_attr('event.lymow_one_plus_last_session', 'area_m2') | float(0) }}
+        duration_s: >
+          {{ state_attr('event.lymow_one_plus_last_session', 'duration_s') | float(0) }}
+        used_battery: >
+          {{ state_attr('event.lymow_one_plus_last_session', 'used_battery') | float(0) }}
+    - action: notify.send_message
+      target:
+        entity_id: notify.mobile_app_your_phone
+      data:
+        title: Mowing complete
+        message: >
+          Mowed {{ area_m2 | round(0) }} m² in
+          {{ (duration_s / 60) | round(1) }} min.
+          Used {{ used_battery | round(0) }}% battery.
+  mode: queued
+  max: 5
