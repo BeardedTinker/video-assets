@@ -1,0 +1,78 @@
+# Paste this as a manual dashboard card.
+# Replace the example entity IDs with those created for your mower.
+# The map requires Map Card and Mammotion Assets from HACS.
+type: vertical-stack
+cards:
+  - type: tile
+    entity: lawn_mower.luba_3
+    name: Luba 3 AWD Controls
+    icon: mdi:robot-mower
+    color: light-green
+    state_content: state
+    features_position: inline
+    features:
+      - type: lawn-mower-commands
+        commands:
+          - start_pause
+          - dock
+
+  - type: custom:map-card
+    title: Luba 3 AWD - Position & Boundaries
+    focus_entity: device_tracker.luba_3
+    default_zoom: 20
+    zoom: 18
+    theme_mode: light
+    entities:
+      - entity: device_tracker.luba_3
+        display: marker
+        picture: /hacsfiles/ha-mammotion-assets/dist/assets/map/dc_newui_icon_map_luba_442_white.png
+        size: 24
+    plugins:
+      - name: geoJson
+        url: /hacsfiles/ha-mammotion-assets/dist/geojson.js?v=2
+        options:
+          entity_id: lawn_mower.luba_3
+          rotation_deg: 0
+    tile_layers:
+      - url: https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
+    tile_layer_options:
+      minZoom: 14
+      maxZoom: 24
+      maxNativeZoom: 21
+
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: tile
+        entity: sensor.luba_3_battery
+        name: Battery
+        icon: mdi:battery
+      - type: tile
+        entity: binary_sensor.luba_3_charging
+        name: Charging
+        icon: mdi:battery-charging
+      - type: tile
+        entity: sensor.luba_3_progress
+        name: Progress
+        icon: mdi:progress-clock
+      - type: tile
+        entity: sensor.luba_3_time_left
+        name: Estimated Time Left
+        icon: mdi:timer-sand
+      - type: tile
+        entity: sensor.luba_3_current_location
+        name: Current Location
+        icon: mdi:map-marker
+      - type: tile
+        entity: sensor.luba_3_area
+        name: Working Area
+        icon: mdi:texture-box
+      - type: tile
+        entity: sensor.luba_3_wi_fi_rssi
+        name: Wi-Fi Signal
+        icon: mdi:wifi
+      - type: tile
+        entity: sensor.luba_3_satellites_robot
+        name: Satellites
+        icon: mdi:satellite-variant

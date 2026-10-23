@@ -8,10 +8,14 @@ You’ll find structured Home Assistant YAML examples, automation logic, helper 
 ## Where to start
 Browse the repository root.
 
-Each video has its own folder (e.g. `smoke-detected-whole-house-alert-sensereo-ms1/`) with:
+Only videos with reusable supporting material have a folder. Reviews, news,
+roundups, and videos already covered by a dedicated project repository are not
+duplicated here.
+
+A project folder may contain:
 - a short README (what it does + prerequisites)
 - YAML/code used in the video
-- optional diagrams, screenshots, or links
+- reusable methodology, diagrams, results, or maker files
 
 All examples are designed for practical, real-world setups — not lab demos.
 Some projects are intentionally architecture-focused rather than plug-and-play, showing the logic and design patterns behind larger Home Assistant systems.
@@ -34,6 +38,13 @@ Some projects are intentionally architecture-focused rather than plug-and-play, 
 
 ### ⚡ Energy & Dashboards
 - [2 New HACS Energy Cards You NEED (Treemap + Compact Power)](./energy-cards-treemap-compact-power/)
+
+### 🌱 Outdoor Robotics
+- [Luba 3 with Home Assistant](./luba-3-home-assistant/) — Mammotion integration, controls, status, and map dashboard.
+- [Lymow with Home Assistant](./lymow-home-assistant/) — Integration, dashboard, GeoJSON map helpers, and completed-session notification.
+
+### 🗣️ Voice & Assist
+- [Home Assistant Voice Assistant Series](./home-assistant-voice-assistant-series/) — Repeatable real-world comparison methodology and a blank test record.
 
 ### 🛠️ Maker / Hardware
 - [BambuCaster — 3D Printed Guitar Project](./bambucaster-3d-printed-electric-guitar/)

@@ -1,0 +1,46 @@
+# Merge this block into your Home Assistant configuration.
+# Replace sensor.lymow_one_plus_map_geojson with your integration entity.
+template:
+  - sensor:
+      - name: Lymow GeoJSON Zones
+        unique_id: lymow_geojson_zones
+        state: zones
+        attributes:
+          geojson: >
+            {{ state_attr('sensor.lymow_one_plus_map_geojson', 'geojson_zones') }}
+
+      - name: Lymow GeoJSON Mowed Area
+        unique_id: lymow_geojson_mowed_area
+        state: mowed_area
+        attributes:
+          geojson: >
+            {% set data = state_attr('sensor.lymow_one_plus_map_geojson', 'geojson') %}
+            {% set features = data.get('features', []) if data is mapping else [] %}
+            {{ dict(
+              type='FeatureCollection',
+              features=features | selectattr('properties.type', 'eq', 'mowed_area') | list
+            ) }}
+
+      - name: Lymow GeoJSON Dock
+        unique_id: lymow_geojson_dock
+        state: dock
+        attributes:
+          geojson: >
+            {% set data = state_attr('sensor.lymow_one_plus_map_geojson', 'geojson') %}
+            {% set features = data.get('features', []) if data is mapping else [] %}
+            {{ dict(
+              type='FeatureCollection',
+              features=features | selectattr('properties.type', 'eq', 'dock') | list
+            ) }}
+
+      - name: Lymow GeoJSON Robot
+        unique_id: lymow_geojson_robot
+        state: robot
+        attributes:
+          geojson: >
+            {% set data = state_attr('sensor.lymow_one_plus_map_geojson', 'geojson') %}
+            {% set features = data.get('features', []) if data is mapping else [] %}
+            {{ dict(
+              type='FeatureCollection',
+              features=features | selectattr('properties.type', 'eq', 'robot') | list
+            ) }}
