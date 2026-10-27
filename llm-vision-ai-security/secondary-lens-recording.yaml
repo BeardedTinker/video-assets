@@ -1,0 +1,25 @@
+- id: front_yard_secondary_lens_buffered_recording_example
+  alias: "Buffered Recording - Front Yard Secondary Lens"
+  description: >
+    Records a buffered B-roll clip from a second lens without another AI call.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_yard_person
+      to: "on"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ states('camera.front_yard_secondary') not in ['unknown', 'unavailable'] }}
+  actions:
+    - action: camera.record
+      target:
+        entity_id: camera.front_yard_secondary
+      data:
+        filename: "/media/llmvision/front_yard_secondary_event.mp4"
+        duration: 10
+        lookback: 10
+    - delay:
+        minutes: 2
+        seconds: 30
+  mode: single
+  max_exceeded: silent

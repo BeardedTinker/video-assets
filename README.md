@@ -51,6 +51,7 @@ Some projects are intentionally architecture-focused rather than plug-and-play, 
 
 ### 🔐 Security & Observability
 - [I Built a SIEM for My Smart Home… (Wazuh + Home Assistant)](./smart-home-siem-wazuh/) — Wazuh SIEM integration, REST sensors, and security scoring for Home Assistant 
+- [LLM Vision AI Security Without Frigate](./llm-vision-ai-security/) — Buffered camera recordings, occupancy-aware AI classification, Timeline events, and mobile notifications.
 
 ## ⚠️ Notes
 - Secrets, tokens, and personal identifiers are removed or replaced with placeholders.

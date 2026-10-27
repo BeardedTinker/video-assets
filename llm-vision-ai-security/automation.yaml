@@ -1,0 +1,133 @@
+- id: llm_vision_front_yard_buffered_example
+  alias: "AI Event Summary - Front Yard"
+  description: >
+    Records a buffered clip, analyzes five frames with LLM Vision, and sends an
+    occupancy-aware notification.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_yard_person
+      to: "on"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ states('camera.front_yard_fluent') not in ['unknown', 'unavailable'] }}
+  actions:
+    - variables:
+        recording_path: "/media/llmvision/front_yard_event.mp4"
+        occupancy_status: >
+          {% if is_state('input_boolean.guest_mode', 'on') %}
+            OCCUPIED_OR_GUESTS_EXPECTED
+          {% elif states('zone.home') | int(0) > 0 %}
+            OCCUPIED
+          {% else %}
+            UNOCCUPIED_NO_GUESTS
+          {% endif %}
+    - action: camera.record
+      target:
+        entity_id: camera.front_yard_fluent
+      data:
+        filename: "{{ recording_path }}"
+        duration: 10
+        lookback: 10
+    - action: llmvision.video_analyzer
+      data:
+        provider: YOUR_LLM_VISION_PROVIDER_ID
+        model: gpt-4o-mini
+        message: >
+          Summarize the security event shown by the Front Yard camera. Focus on
+          moving subjects, direction of travel, actions, and interactions. Ignore
+          static scenery and do not mention images, frames, or video.
+
+          Site context: This camera covers a private front yard and the official
+          route from the public boundary toward the house. Rewrite this paragraph
+          to describe the actual boundaries and expected direction of travel in
+          your camera view.
+
+          Current occupancy status: {{ occupancy_status }}
+
+          Occupancy rules:
+          - OCCUPIED means at least one registered resident is home. Do not call
+            the property empty or the person unexpected based on occupancy.
+          - OCCUPIED_OR_GUESTS_EXPECTED means Guest Mode is active. Do not call
+            the property empty or assume that presence is unauthorized.
+          - UNOCCUPIED_NO_GUESTS means no resident is home and Guest Mode is off.
+            Presence on private property is unexpected and must be at least
+            time-sensitive.
+
+          Classification rules:
+          - A person entering, crossing, lingering on, or walking through private
+            property must be at least time-sensitive, even when calm.
+          - Passive is allowed only when a person clearly remains outside the
+            private-property boundary and is merely passing by.
+          - Critical is reserved for forced entry, concealment, checking doors or
+            windows, or other clearly suspicious behavior.
+
+          Return a concise title, description, and importance classification.
+        video_file: "{{ recording_path }}"
+        max_frames: 5
+        include_filename: false
+        target_width: 1280
+        max_tokens: 1000
+        use_memory: true
+        expose_images: true
+        store_in_timeline: false
+        response_format: json
+        structure: >
+          {"type":"object","properties":{"title":{"type":"string"},"description":{"type":"string"},"importance":{"type":"string","enum":["passive","time-sensitive","critical"]}},"required":["title","description","importance"],"additionalProperties":false}
+        title_field: title
+        description_field: description
+      response_variable: analysis
+    - variables:
+        event_title: >
+          {{ analysis.title | default('Motion detected', true) }}
+        event_description: >
+          {{ analysis.structured_response.description
+             | default('Person detected in the monitored area.', true) }}
+        event_importance: >
+          {{ analysis.structured_response.importance
+             | default('time-sensitive', true) }}
+        key_frame_url: >
+          {{ analysis.key_frame | replace('/media', '/media/local') }}
+    - condition: template
+      value_template: "{{ event_importance != 'passive' }}"
+    - action: llmvision.create_event
+      data:
+        title: "{{ event_title }}"
+        description: "{{ event_description }}"
+        label: Person
+        image_path: "{{ analysis.key_frame }}"
+        camera_entity: camera.front_yard_fluent
+    - action: notify.mobile_app_your_phone
+      data:
+        title: "{{ event_title }} at {{ now().strftime('%H:%M') }}"
+        message: "{{ event_description }}"
+        data:
+          image: "{{ key_frame_url }}"
+          url: /lovelace/security
+          clickAction: /lovelace/security
+          tag: "front_yard_{{ as_timestamp(now()) | int }}"
+          group: "LLM Vision Security"
+          alert_once: true
+          ttl: 0
+          priority: high
+          channel: >
+            {{ 'alarm_stream' if event_importance == 'critical'
+               else 'LLM Vision Security' }}
+          color: "#03a9f4"
+          notification_icon: mdi:cctv
+          sticky: true
+          push:
+            interruption-level: "{{ event_importance }}"
+            sound:
+              name: default
+              volume: 1
+              critical: "{{ event_importance == 'critical' }}"
+          actions:
+            - action: URI
+              title: "See Snapshot"
+              uri: "{{ key_frame_url }}"
+    - delay:
+        minutes: 2
+        seconds: 30
+  mode: single
+  max_exceeded: silent
