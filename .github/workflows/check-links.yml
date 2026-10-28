@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check Markdown links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
@@ -26,5 +26,6 @@ jobs:
           args: >-
             --no-progress
             --accept 200..=299,403,429
+            --max-redirects 20
             --exclude '^https://wazuh\.example\.internal'
             './**/*.md'
