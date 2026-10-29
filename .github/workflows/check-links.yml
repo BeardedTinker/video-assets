@@ -27,5 +27,6 @@ jobs:
             --no-progress
             --accept 200..=299,403,429
             --max-redirects 20
+            --exclude '^https://(www\.aliexpress\.com|s\.click\.aliexpress\.com)/'
             --exclude '^https://wazuh\.example\.internal'
             './**/*.md'

@@ -2,6 +2,8 @@
 
 **Video:** https://youtu.be/8Xuzu-WceDY
 
+**Tested with:** Home Assistant 2026.10.4 (October 2026)
+
 This project records a short buffered camera clip after a camera-native person
 detection, sends five selected frames from that clip to LLM Vision, and creates
 an occupancy-aware mobile notification and Timeline event.
